@@ -104,7 +104,7 @@
         "integração",
         "integracao"
       ],
-      "answer": "O app tem um endpoint autenticado POST /api/chat que atualmente recupera a base off-road confirmada e pode usar Groq/Tavily quando configurados. A VERIS tem API independente POST /v1/chat, mas a conexão entre os dois projetos ainda não foi implementada. A futura integração deve ocorrer no backend do Trilha 4X4; a chave privada da VERIS nunca deve ir para o frontend."
+      "answer": "O aplicativo possui POST /api/chat autenticado. A integração backend com POST /v1/chat da VERIS foi publicada no repositório do Trilha 4X4: quando VERIS_URL e VERIS_API_KEY estiverem configuradas no servidor, o app consulta a VERIS primeiro e preserva o chat anterior como fallback. Os testes automáticos passaram, mas a comunicação real no PC e no celular ainda precisa ser validada. A chave privada fica somente no backend, nunca no frontend."
     },
     {
       "id": "app-009",
