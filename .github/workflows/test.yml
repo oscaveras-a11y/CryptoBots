@@ -12,3 +12,6 @@ jobs:
         with:
           node-version: '22'
       - run: npm run check
+
+      - name: Teste de carga limitado
+        run: node tests/load.js
