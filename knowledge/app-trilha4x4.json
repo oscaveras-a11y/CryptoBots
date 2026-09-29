@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "source_repository": "oscaveras-a11y/Trilha-4X4",
+  "source_reviewed_at": "2026-09-29",
+  "scope": "Funcionalidades e arquitetura do aplicativo, não dados de contas nem estado ao vivo.",
+  "entries": [
+    {
+      "id": "app-001",
+      "topic": "O que é o Trilha 4X4?",
+      "keywords": [
+        "aplicativo",
+        "app",
+        "trilha 4x4",
+        "funciona"
+      ],
+      "answer": "O Trilha 4X4 é um aplicativo web/PWA para organizar grupos, passeios e trilhas off-road, com cadastro de veículos, rota e navegação, localização de participantes e SOS. O fluxo principal documentado é: grupo de amigos → passeio → passeio confirmado → administrador cria a trilha → rota/navegação."
+    },
+    {
+      "id": "app-002",
+      "topic": "Como criar e participar de grupos e passeios?",
+      "keywords": [
+        "grupo",
+        "grupos",
+        "passeio",
+        "convite",
+        "admin",
+        "aprovação"
+      ],
+      "answer": "O app permite criar e editar grupos, convidar amigos por código, organizar passeios, confirmar presença e vincular uma trilha ao passeio. A administração pode aprovar solicitações de entrada em trilhas. Não afirme que uma pessoa está inscrita ou aprovada sem consultar o servidor do aplicativo."
+    },
+    {
+      "id": "app-003",
+      "topic": "Como cadastrar um veículo no Meu 4x4?",
+      "keywords": [
+        "veículo",
+        "veiculo",
+        "meu 4x4",
+        "cadastrar",
+        "placa"
+      ],
+      "answer": "No módulo Meu 4x4, é possível cadastrar e editar tipo, marca, modelo, ano, cor, placa e observações. Tipo, marca e modelo são exigidos pelo formulário; placa é opcional, inclusive para gaiolas e UTVs. Veículos modificados podem ter motor, câmbio e eixos de outras origens; nunca presuma que a configuração cadastrada corresponde à mecânica real."
+    },
+    {
+      "id": "app-004",
+      "topic": "Como criar trilha, código e rota planejada?",
+      "keywords": [
+        "criar trilha",
+        "código",
+        "codigo",
+        "rota",
+        "500",
+        "planejada",
+        "navegação"
+      ],
+      "answer": "O administrador cria uma trilha, que recebe um código 4X4-XXXXX, podendo definir acesso público, privado ou por convite e associar um passeio. A rota planejada é livre, sem obrigatoriedade de seguir estradas, e tem limite de 500 pontos. O app também possui gravação de percurso com controles de iniciar, pausar e finalizar; confirme o comportamento no aparelho antes de afirmar que está plenamente validado."
+    },
+    {
+      "id": "app-005",
+      "topic": "Como funciona o percurso offline?",
+      "keywords": [
+        "offline",
+        "sem internet",
+        "baixar",
+        "mapa",
+        "cache",
+        "percurso"
+      ],
+      "answer": "O aplicativo salva um pacote do percurso no aparelho para fallback offline. O mapa-base ainda depende de internet: o download completo dos tiles de uma região não está implementado. Não prometa navegação com mapa completo sem conexão."
+    },
+    {
+      "id": "app-006",
+      "topic": "Como funciona o SOS e a localização?",
+      "keywords": [
+        "sos",
+        "socorro",
+        "localização",
+        "localizacao",
+        "segurança",
+        "emergência"
+      ],
+      "answer": "Há recursos de localização e alertas SOS vinculados à trilha e endpoints para criar, listar e encerrar alertas. A interface solicita GPS e avisa os participantes da trilha quando o alerta é ativado. A entrega efetiva depende de conectividade e testes; a IA não envia SOS nem acompanha localização por conta própria. Em emergência, oriente a usar o recurso SOS do app se houver sinal e procurar serviços de emergência por meios disponíveis."
+    },
+    {
+      "id": "app-007",
+      "topic": "O aplicativo funciona no iPhone e Android?",
+      "keywords": [
+        "iphone",
+        "android",
+        "instalar",
+        "pwa",
+        "capacitor",
+        "ios"
+      ],
+      "answer": "O Trilha 4X4 é PWA instalável e possui preparação para aplicativos Android/iOS com Capacitor, preservando o servidor Node/Express. Para acessar o servidor fora do PC é necessário HTTPS; túneis temporários Cloudflare não fornecem endereço permanente. A compilação iOS nativa exige macOS/Xcode. Não confunda código preparado com publicação nas lojas."
+    },
+    {
+      "id": "app-008",
+      "topic": "Como o aplicativo e a VERIS se conectam?",
+      "keywords": [
+        "veris",
+        "ia",
+        "chat",
+        "api",
+        "integração",
+        "integracao"
+      ],
+      "answer": "O app tem um endpoint autenticado POST /api/chat que atualmente recupera a base off-road confirmada e pode usar Groq/Tavily quando configurados. A VERIS tem API independente POST /v1/chat, mas a conexão entre os dois projetos ainda não foi implementada. A futura integração deve ocorrer no backend do Trilha 4X4; a chave privada da VERIS nunca deve ir para o frontend."
+    },
+    {
+      "id": "app-009",
+      "topic": "Como funcionam as notificações em tempo real?",
+      "keywords": [
+        "notificações",
+        "notificacoes",
+        "tempo real",
+        "sse",
+        "evento"
+      ],
+      "answer": "O backend do aplicativo expõe eventos em tempo real para notificações e grupos, e o projeto possui atualizações de passeios, membros, trilhas e rota. O heartbeat SSE foi configurado para 25 segundos em alterações anteriores; a entrega em campo, especialmente com tela bloqueada e sinal instável, ainda exige testes."
+    },
+    {
+      "id": "app-010",
+      "topic": "O que a VERIS pode consultar sobre minha conta, trilha ou grupo?",
+      "keywords": [
+        "minha conta",
+        "meu grupo",
+        "minha trilha",
+        "participantes",
+        "status",
+        "dados pessoais"
+      ],
+      "answer": "Esta base contém somente documentação geral do aplicativo. A VERIS não possui, por esta base, acesso em tempo real a usuários, grupos, trilhas, posições GPS, aprovações ou alertas. Para consultar dados reais será necessário criar ferramentas autenticadas no backend do app, autorizadas por usuário e com isolamento entre grupos."
+    }
+  ]
+}
