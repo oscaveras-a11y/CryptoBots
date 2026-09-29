@@ -23,8 +23,14 @@ const { server } = require('../server');
     assert.equal(pending.status,200);
     const p = await pending.json();
     assert(!p.knowledge.some(x=>x.id==='offroad-015'));
+    const app = await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'Como cadastrar meu veículo no aplicativo?'})});
+    assert.equal(app.status,200);
+    const appData=await app.json();
+    assert.equal(appData.module,'trilha4x4-app');
+    assert(appData.app_knowledge.some(x=>x.id==='app-003'));
+    assert(!appData.knowledge.length);
     const bad = await fetch(url+'/v1/chat',{method:'POST',headers,body:'{invalid'});
     assert.equal(bad.status,400);
-    console.log('API VERIS: health, autenticação, base validada, pendências e JSON inválido OK');
+    console.log('API VERIS: health, autenticação, base validada, conhecimento do app, pendências e JSON inválido OK');
   } finally { await new Promise(resolve=>server.close(resolve)); }
 })().catch(err=>{console.error(err);process.exitCode=1;});
