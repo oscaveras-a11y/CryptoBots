@@ -7,7 +7,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "start": "node server.js",
+    "start": "node --env-file=.env server.js",
     "check": "node tests/ai-knowledge.js && node tests/api.js"
   }
 }
