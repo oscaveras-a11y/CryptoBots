@@ -1,8 +1,30 @@
 'use strict';
 const assert = require('node:assert/strict');
+process.env.VERIS_API_KEY = 'test-key-with-more-than-32-characters-123';
+delete process.env.MODEL_API_KEY;
 const { server } = require('../server');
 (async () => {
-  const key = 'test-key-with-more-than-32-characters-123';
-  process.env.VERIS_API_KEY = key;
-  // server.js lê a chave na importação: o teste deve definir a chave antes de carregar o módulo.
-})().catch(e=>{ console.error(e);process.exitCode=1; });
+  await new Promise(resolve => server.listen(0,'127.0.0.1',resolve));
+  const url = 'http://127.0.0.1:'+server.address().port;
+  try {
+    const health = await fetch(url+'/health');
+    assert.equal(health.status,200);
+    assert.equal((await health.json()).ok,true);
+    const unauthorized = await fetch(url+'/v1/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:'atolei na lama'})});
+    assert.equal(unauthorized.status,401);
+    const headers = {'Content-Type':'application/json','Authorization':'Bearer '+process.env.VERIS_API_KEY};
+    const ok = await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'atolamento na lama'})});
+    assert.equal(ok.status,200);
+    const result = await ok.json();
+    assert.equal(result.mode,'knowledge');
+    assert(result.knowledge.length>0);
+    assert(result.knowledge.every(x=>x.status==='CONFIRMADA'));
+    const pending = await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'semieixo homocinética quebrada'})});
+    assert.equal(pending.status,200);
+    const p = await pending.json();
+    assert(!p.knowledge.some(x=>x.id==='offroad-015'));
+    const bad = await fetch(url+'/v1/chat',{method:'POST',headers,body:'{invalid'});
+    assert.equal(bad.status,400);
+    console.log('API VERIS: health, autenticação, base validada, pendências e JSON inválido OK');
+  } finally { await new Promise(resolve=>server.close(resolve)); }
+})().catch(err=>{console.error(err);process.exitCode=1;});
