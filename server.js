@@ -8,6 +8,8 @@ const { avaliarEntrada, validarSaida, sanitizarCampo, contemSegredo, contemInstr
 const PORT = Number(process.env.PORT || 3100);
 const HOST = process.env.HOST || '127.0.0.1';
 const API_KEY = process.env.VERIS_API_KEY || '';
+const OWNER_KEY = process.env.VERIS_OWNER_API_KEY || '';
+const OWNER_LIMIT = Math.min(600,Math.max(20,Number(process.env.VERIS_OWNER_RATE_LIMIT)||120));
 const ORIGINS = new Set((process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean));
 const buckets = new Map();
 const MAX_BODY = 12 * 1024;
@@ -19,20 +21,26 @@ function json(res, status, data, extra = {}) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...extra });
   res.end(body);
 }
-function authenticated(req) {
+function keyMatches(supplied, expected) {
+  if (!expected || expected.length < 32 || !supplied) return false;
+  const a = Buffer.from(supplied), b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a,b);
+}
+function accessTier(req) {
   const header = req.headers.authorization || '';
   const supplied = header.startsWith('Bearer ') ? header.slice(7) : '';
-  const a = Buffer.from(supplied), b = Buffer.from(API_KEY);
-  return Boolean(API_KEY && supplied && a.length === b.length && crypto.timingSafeEqual(a,b));
+  if (keyMatches(supplied, OWNER_KEY)) return 'owner';
+  if (keyMatches(supplied, API_KEY)) return 'standard';
+  return null;
 }
-function rateLimited(req) {
-  const key = req.socket.remoteAddress || 'unknown';
+function rateLimited(req, tier) {
+  const key = tier + ':' + (req.socket.remoteAddress || 'unknown');
   const now = Date.now();
   if (buckets.size > 2000) for (const [k,v] of buckets) if (v.until <= now) buckets.delete(k);
   const bucket = buckets.get(key);
   if (!bucket || bucket.until <= now) { buckets.set(key,{count:1,until:now+WINDOW}); return false; }
   bucket.count++;
-  return bucket.count > LIMIT;
+  return bucket.count > (tier === 'owner' ? OWNER_LIMIT : LIMIT);
 }
 async function bodyJSON(req) {
   let size = 0, chunks = [];
@@ -83,8 +91,9 @@ const server = http.createServer(async (req,res) => {
   if (req.method === 'OPTIONS') return json(res,origin && ORIGINS.has(origin) ? 204 : 403,{});
   if (req.method === 'GET' && req.url === '/health') return json(res,200,{ok:true,service:'IA-VERIS',version:'0.1.0'});
   if (req.url !== '/v1/chat' || req.method !== 'POST') return json(res,404,{error:'Rota não encontrada'});
-  if (!authenticated(req)) return json(res,401,{error:'Não autorizado'});
-  if (rateLimited(req)) return json(res,429,{error:'Limite temporário excedido'});
+  const tier = accessTier(req);
+  if (!tier) return json(res,401,{error:'Não autorizado'});
+  if (rateLimited(req,tier)) return json(res,429,{error:'Limite temporário excedido'});
   try {
     const data = await bodyJSON(req);
     if (!data || typeof data.question !== 'string' || !data.question.trim() || data.question.length > 2000) return json(res,400,{error:'question deve conter de 1 a 2000 caracteres'});
@@ -107,7 +116,7 @@ const server = http.createServer(async (req,res) => {
       ? appEntries.map(e=>e.answer).join('\n\n')
       : entries.length ? entries.map(e=>e.answer).join('\n\n')
       : 'Ainda não tenho uma resposta validada para essa situação. Informe os sintomas e, se souber, quais componentes estão instalados (motor, câmbio, transferência e eixos). Se houver risco imediato, pare em local seguro e procure assistência.');
-    return json(res,200,{answer,mode:generated?'model':'knowledge',module:appEntries.length?'trilha4x4-app':'veris-4x4',knowledge:entries.map(e=>({id:e.id,topic:e.topic,status:e.status})),app_knowledge:appEntries.map(e=>({id:e.id,topic:e.topic})),needs_review:!entries.length&&!appEntries.length});
+    return json(res,200,{tier,answer,mode:generated?'model':'knowledge',module:appEntries.length?'trilha4x4-app':'veris-4x4',knowledge:entries.map(e=>({id:e.id,topic:e.topic,status:e.status})),app_knowledge:appEntries.map(e=>({id:e.id,topic:e.topic})),needs_review:!entries.length&&!appEntries.length});
   } catch (err) { return json(res,err.status || 500,{error:err.status ? err.message : 'Erro interno'}); }
 });
 if (require.main === module) {
@@ -115,6 +124,7 @@ if (require.main === module) {
     console.error('Configure VERIS_API_KEY com pelo menos 32 caracteres antes de iniciar.');
     process.exit(1);
   }
+  if (OWNER_KEY && (OWNER_KEY.length < 32 || OWNER_KEY === API_KEY)) { console.error('VERIS_OWNER_API_KEY deve ser diferente e ter ao menos 32 caracteres.'); process.exit(1); }
   server.listen(PORT,HOST,()=>console.log('IA-VERIS ouvindo em http://'+HOST+':'+PORT));
 }
 module.exports = { server };
