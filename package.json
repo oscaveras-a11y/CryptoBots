@@ -8,6 +8,6 @@
   },
   "scripts": {
     "start": "node --env-file=.env server.js",
-    "check": "node tests/ai-knowledge.js && node tests/api.js"
+    "check": "node --check server.js && node --check lib/ai-security.js && node --check lib/app-knowledge.js && node tests/ai-knowledge.js && node tests/ai-security.js && node tests/api.js"
   }
 }
