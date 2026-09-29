@@ -3,6 +3,7 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const { buscarConhecimento, formatarConhecimento } = require('./lib/ai-knowledge');
 const { buscarApp, perguntaSobreApp } = require('./lib/app-knowledge');
+const { avaliarEntrada, validarSaida, sanitizarCampo, contemSegredo, contemInstrucaoHostil } = require('./lib/ai-security');
 
 const PORT = Number(process.env.PORT || 3100);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -66,7 +67,9 @@ async function modelReply(question, entries, context, appEntries = []) {
     });
     if (!response.ok) return null;
     const result = await response.json();
-    return typeof result.choices?.[0]?.message?.content === 'string' ? result.choices[0].message.content.slice(0,5000) : null;
+    const candidate = result.choices?.[0]?.message?.content;
+    const checked = typeof candidate === 'string' ? validarSaida(candidate) : null;
+    return checked?.ok ? checked.text : null;
   } catch { return null; } finally { clearTimeout(timeout); }
 }
 const server = http.createServer(async (req,res) => {
@@ -86,10 +89,20 @@ const server = http.createServer(async (req,res) => {
     const data = await bodyJSON(req);
     if (!data || typeof data.question !== 'string' || !data.question.trim() || data.question.length > 2000) return json(res,400,{error:'question deve conter de 1 a 2000 caracteres'});
     if (data.context !== undefined && (typeof data.context !== 'object' || data.context === null || Array.isArray(data.context) || JSON.stringify(data.context).length > 2000)) return json(res,400,{error:'context inválido'});
-    const question = data.question.trim();
+    const safety = avaliarEntrada(data.question);
+    if (!safety.ok) return json(res,400,{error:'Pergunta bloqueada pela validação de segurança',safety:safety.code});
+    const question = safety.text;
+    const rawContext = data.context || {};
+    const context = {};
+    for (const [k,v] of Object.entries(rawContext)) {
+      if (!/^[a-zA-Z][a-zA-Z0-9_]{0,35}$/.test(k)) continue;
+      if (typeof v !== 'string' && typeof v !== 'number' && typeof v !== 'boolean') continue;
+      const safe = sanitizarCampo(v,160);
+      if (safe && !contemSegredo(safe) && !contemInstrucaoHostil(safe)) context[k] = safe;
+    }
     const appEntries = perguntaSobreApp(question) ? buscarApp(question) : [];
     const entries = appEntries.length ? [] : buscarConhecimento(question);
-    const generated = (entries.length || appEntries.length) ? await modelReply(question,entries,data.context,appEntries) : null;
+    const generated = (entries.length || appEntries.length) ? await modelReply(question,entries,context,appEntries) : null;
     const answer = generated || (appEntries.length
       ? appEntries.map(e=>e.answer).join('\n\n')
       : entries.length ? entries.map(e=>e.answer).join('\n\n')
