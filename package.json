@@ -1,0 +1,13 @@
+{
+  "name": "ia-veris",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API independente VERIS com módulo 4X4",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "check": "node tests/ai-knowledge.js && node tests/api.js"
+  }
+}
