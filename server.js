@@ -2,6 +2,7 @@
 const http = require('node:http');
 const crypto = require('node:crypto');
 const { buscarConhecimento, formatarConhecimento } = require('./lib/ai-knowledge');
+const { buscarApp, perguntaSobreApp } = require('./lib/app-knowledge');
 
 const PORT = Number(process.env.PORT || 3100);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -42,7 +43,7 @@ async function bodyJSON(req) {
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
   catch { const err = new Error('JSON inválido'); err.status = 400; throw err; }
 }
-async function modelReply(question, entries, context) {
+async function modelReply(question, entries, context, appEntries = []) {
   const key = process.env.MODEL_API_KEY;
   if (!key) return null;
   const base = (process.env.MODEL_BASE_URL || 'https://api.groq.com/openai/v1').replace(/\/$/,'');
@@ -86,12 +87,14 @@ const server = http.createServer(async (req,res) => {
     if (!data || typeof data.question !== 'string' || !data.question.trim() || data.question.length > 2000) return json(res,400,{error:'question deve conter de 1 a 2000 caracteres'});
     if (data.context !== undefined && (typeof data.context !== 'object' || data.context === null || Array.isArray(data.context) || JSON.stringify(data.context).length > 2000)) return json(res,400,{error:'context inválido'});
     const question = data.question.trim();
-    const entries = buscarConhecimento(question);
-    const generated = entries.length ? await modelReply(question,entries,data.context) : null;
-    const answer = generated || (entries.length
-      ? entries.map(e=>e.answer).join('\n\n')
+    const appEntries = perguntaSobreApp(question) ? buscarApp(question) : [];
+    const entries = appEntries.length ? [] : buscarConhecimento(question);
+    const generated = (entries.length || appEntries.length) ? await modelReply(question,entries,data.context,appEntries) : null;
+    const answer = generated || (appEntries.length
+      ? appEntries.map(e=>e.answer).join('\n\n')
+      : entries.length ? entries.map(e=>e.answer).join('\n\n')
       : 'Ainda não tenho uma resposta validada para essa situação. Informe os sintomas e, se souber, quais componentes estão instalados (motor, câmbio, transferência e eixos). Se houver risco imediato, pare em local seguro e procure assistência.');
-    return json(res,200,{answer,mode:generated?'model':'knowledge',module:'veris-4x4',knowledge:entries.map(e=>({id:e.id,topic:e.topic,status:e.status})),needs_review:!entries.length});
+    return json(res,200,{answer,mode:generated?'model':'knowledge',module:appEntries.length?'trilha4x4-app':'veris-4x4',knowledge:entries.map(e=>({id:e.id,topic:e.topic,status:e.status})),app_knowledge:appEntries.map(e=>({id:e.id,topic:e.topic})),needs_review:!entries.length&&!appEntries.length});
   } catch (err) { return json(res,err.status || 500,{error:err.status ? err.message : 'Erro interno'}); }
 });
 if (require.main === module) {
