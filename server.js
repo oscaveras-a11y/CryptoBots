@@ -87,7 +87,7 @@ const server = http.createServer(async (req,res) => {
     if (data.context !== undefined && (typeof data.context !== 'object' || data.context === null || Array.isArray(data.context) || JSON.stringify(data.context).length > 2000)) return json(res,400,{error:'context inválido'});
     const question = data.question.trim();
     const entries = buscarConhecimento(question);
-    const generated = await modelReply(question,entries,data.context);
+    const generated = entries.length ? await modelReply(question,entries,data.context) : null;
     const answer = generated || (entries.length
       ? entries.map(e=>e.answer).join('\n\n')
       : 'Ainda não tenho uma resposta validada para essa situação. Informe os sintomas e, se souber, quais componentes estão instalados (motor, câmbio, transferência e eixos). Se houver risco imediato, pare em local seguro e procure assistência.');
