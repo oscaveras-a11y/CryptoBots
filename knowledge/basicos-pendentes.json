@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "scope": "Conhecimento básico off-road proposto para revisão humana; não habilitado na recuperação automática",
+  "created_at": "2026-09-29",
+  "entries": [
+    {
+      "id": "basico-001",
+      "topic": "O que verificar antes de sair para uma trilha?",
+      "status": "PENDENTE_VALIDACAO",
+      "answer": "Conferir pneus e estepe, pressão conforme veículo e terreno, freios, fluidos, vazamentos, iluminação, bateria, ferramentas, equipamentos de recuperação adequados e previsão do tempo. Informar o trajeto e horário previsto a alguém de confiança. Verificar combustível, água e comunicação; não depender exclusivamente do sinal de celular."
+    },
+    {
+      "id": "basico-002",
+      "topic": "Qual a diferença entre 4H e 4L?",
+      "status": "PENDENTE_VALIDACAO",
+      "answer": "Em veículos que possuem esses modos, 4H normalmente permite tração nas quatro rodas em relação alta; 4L utiliza uma relação reduzida, favorecendo controle e força em baixa velocidade. A forma correta de engatar e as restrições em piso de alta aderência variam conforme a transmissão e o fabricante. Identificar o sistema instalado antes de orientar."
+    },
+    {
+      "id": "basico-003",
+      "topic": "Por que é importante usar um guia externo em obstáculos?",
+      "status": "PENDENTE_VALIDACAO",
+      "answer": "Um guia externo (spotter) pode observar rodas e obstáculos fora do campo de visão do motorista. Combinar sinais antes da manobra, manter o guia visível e afastado da trajetória, evitar que pessoas fiquem entre veículos ou próximas a cabos tensionados e parar imediatamente se perder contato visual."
+    },
+    {
+      "id": "basico-004",
+      "topic": "O que fazer se perder o sinal de internet na trilha?",
+      "status": "PENDENTE_VALIDACAO",
+      "answer": "Usar somente mapas, rotas e informações previamente baixados e verificados. Preservar bateria, registrar a última posição conhecida e evitar entrar em trajetos desconhecidos sem referências seguras. GPS pode continuar funcionando sem internet, mas mapa-base, comunicação e envio de SOS podem depender de conexão. Se houver risco, permanecer em local seguro e utilizar os meios de emergência disponíveis."
+    },
+    {
+      "id": "basico-005",
+      "topic": "Quais cuidados básicos com a bateria e o sistema elétrico?",
+      "status": "PENDENTE_VALIDACAO",
+      "answer": "Antes da trilha, observar fixação e integridade da bateria, terminais e cabos, sem tocar em conexões danificadas. Evitar curto-circuitos e não improvisar ligações de alta corrente. Se houver cheiro de queimado, fumaça ou aquecimento anormal, parar em segurança, desligar equipamentos quando apropriado e buscar avaliação técnica."
+    },
+    {
+      "id": "basico-006",
+      "topic": "O que fazer ao identificar vazamento de fluido?",
+      "status": "PENDENTE_VALIDACAO",
+      "answer": "Parar em local seguro, identificar visualmente a origem sem tocar em componentes quentes ou móveis e verificar avisos do painel. Vazamento de combustível, perda de fluido de freio ou superaquecimento exigem interromper a condução e providenciar assistência. Não presumir que qualquer vazamento permite seguir viagem."
+    },
+    {
+      "id": "basico-007",
+      "topic": "Por que não se deve usar qualquer gancho ou cinta na recuperação?",
+      "status": "PENDENTE_VALIDACAO",
+      "answer": "Cargas de recuperação podem superar o peso estático do veículo. Usar pontos de recuperação previstos e componentes com classificação adequada ao método, inspecionados e compatíveis. Ganchos de reboque ou transporte não são automaticamente pontos de recuperação dinâmica. Manter pessoas afastadas da zona de risco."
+    },
+    {
+      "id": "basico-008",
+      "topic": "Quais informações ajudam a diagnosticar um problema mecânico?",
+      "status": "PENDENTE_VALIDACAO",
+      "answer": "Registrar sintomas, quando começaram, luzes de advertência, ruídos, vazamentos e condições em que ocorrem. Identificar motor, câmbio, transferência, eixos e modificações realmente instalados. Fotos podem ajudar a mostrar o componente e o método de inspeção, mas não substituem medidas escritas nem uma avaliação presencial quando houver risco."
+    }
+  ]
+}
