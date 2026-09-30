@@ -1,14 +1,14 @@
-# IA-VERIS — Plano mestre de produto e engenharia
+# VERIS-AI — Plano mestre de produto e engenharia
 
 **Versão:** 1.0 · **Data-base:** 29/09/2026 · **Estado:** documento vivo  
 **Repositório:** `oscaveras-a11y/IA-VERIS`  
-**Primeiro produto:** VERIS 4X4, integrada ao aplicativo `oscaveras-a11y/Trilha-4X4`.
+**Primeiro módulo:** 4X4, integrada ao aplicativo `oscaveras-a11y/Trilha-4X4`.
 
 > **Princípio:** primeiro fazer a IA funcionar no Trilha 4X4; depois ampliar para sites e outras integrações. Separar rigorosamente o que foi implementado, o que foi apenas publicado em código, o que foi testado e o que é uma ideia futura. Não declarar um recurso pronto sem teste real.
 
 ## 1. Visão de longo prazo
 
-VERIS (Versatile Executive Reasoning & Intelligence System) é uma plataforma independente, modular e extensível de IA, com API própria e múltiplos clientes. O primeiro domínio é off-road; depois, poderão existir assistentes para lojas, oficinas, atendimento empresarial e outras aplicações, com bases e permissões isoladas. A ambição futura é oferecer conversação, pesquisa, memória, visão, voz e geração de mídia em uma experiência unificada. **Não há plano de treinar do zero, agora, um modelo da escala de Gemini/Grok**: começar orquestrando modelos existentes, base própria e infraestrutura viável, mantendo a opção de modelos abertos e ajustes especializados no futuro.
+VERIS-AI (Versatile Executive Reasoning & Intelligence System) é uma plataforma independente, modular e extensível de IA, com API própria e múltiplos clientes. O primeiro domínio é off-road; depois, poderão existir assistentes para lojas, oficinas, atendimento empresarial e outras aplicações, com bases e permissões isoladas. A ambição futura é oferecer conversação, pesquisa, memória, visão, voz e geração de mídia em uma experiência unificada. **Não há plano de treinar do zero, agora, um modelo da escala de Gemini/Grok**: começar orquestrando modelos existentes, base própria e infraestrutura viável, mantendo a opção de modelos abertos e ajustes especializados no futuro.
 
 ### Princípios fixos
 - **Baixo custo inicial:** aproveitar PC próprio para desenvolvimento/testes; preferir ferramentas gratuitas e respeitar limites reais de uso. Não consumir conta paga do usuário automaticamente.
@@ -56,7 +56,7 @@ VERIS (Versatile Executive Reasoning & Intelligence System) é uma plataforma in
                                 └────────┬────────┘
                          ┌───────────────┼──────────────────┐
                   ┌──────▼──────┐ ┌──────▼──────┐ ┌─────────▼─────────┐
-                  │ VERIS 4X4  │ │ VERIS Sites │ │ Módulos futuros   │
+                  │ Módulo 4X4 │ │ VERIS Sites │ │ Módulos futuros   │
                   │ RAG / KB   │ │ KB isolada  │ │ voz / visão/vídeo │
                   └──────┬──────┘ └──────┬──────┘ └─────────┬─────────┘
                          └───────────────┼──────────────────┘
@@ -115,7 +115,7 @@ VERIS (Versatile Executive Reasoning & Intelligence System) é uma plataforma in
 
 **Critério de saída:** testes passando, `/health` e `/v1/chat` respondendo localmente com e sem modelo externo, sem exposição de chave.
 
-### Fase 1 — VERIS 4X4 no PC e no aplicativo [PRIORIDADE MÁXIMA]
+### Fase 1 — VERIS-AI com módulo 4X4 no PC e no aplicativo [PRIORIDADE MÁXIMA]
 - [ ] Clonar `IA-VERIS` no PC e configurar chave local.
 - [ ] Testar consulta offline à base confirmada (servidor local, sem provedor externo).
 - [ ] Testar modelo online opcional e fallback seguro se houver indisponibilidade, custo ou limite.
@@ -242,3 +242,13 @@ A validação das 36 entradas pendentes pode ocorrer em paralelo aos testes da A
 ## 9. Registro de decisões futuras
 
 Registrar toda decisão relevante com data, responsável, alternativa considerada, custo, risco e resultado de teste. Este plano deve ser atualizado conforme o código e os testes reais evoluírem, sem transformar propostas em entregas concluídas.
+
+
+## Atualização de execução — 30/09/2026
+
+- Nome público padronizado para **VERIS-AI** na interface e no servidor; módulo especializado identificado como **Módulo 4X4**.
+- Backend do Trilha 4X4 já chama `/v1/chat` da VERIS-AI quando `VERIS_URL` e `VERIS_API_KEY` estão configurados, com fallback para o chat anterior se a VERIS-AI falhar.
+- Tempo limite do adaptador do Trilha ampliado para 20 segundos para acomodar chamadas ao Groq.
+- O `.env.example` do Trilha foi limpo de um valor de chave; a chave anteriormente exposta deve ser substituída nos ambientes reais.
+- **Pendente para encerrar a Fase 1:** executar ambos os servidores no PC, confirmar respostas gerais e técnicas pela interface e pelo Trilha, testar Groq real, falhas de conexão e validação no celular. Os testes de CI não substituem essa validação.
+- **Fase 2 (documentação/identidade):** README e plano mestre atualizados com a nova marca; preservar identificadores internos de API e variáveis existentes para compatibilidade.
