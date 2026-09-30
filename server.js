@@ -159,7 +159,7 @@ const server = http.createServer(async (req,res) => {
     }
     const appEntries = perguntaSobreApp(question) ? buscarApp(question) : [];
     const entries = appEntries.length ? [] : buscarConhecimento(question);
-    const generated = (entries.length || appEntries.length) ? await modelReply(question,entries,context,appEntries) : null;
+    const generated = await modelReply(question,entries,context,appEntries);
     const answer = generated || (appEntries.length
       ? appEntries.map(e=>e.answer).join('\n\n')
       : entries.length ? entries.map(e=>e.answer).join('\n\n')
