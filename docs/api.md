@@ -60,6 +60,13 @@ No `.env` privado do Trilha 4X4, configure `VERIS_URL=http://127.0.0.1:3100` e `
 - `502`: falha ao acessar a VERIS-AI ou o modelo externo.
 - Para dúvidas técnicas de veículos, a base confirmada tem prioridade; não trate entradas pendentes como validadas.
 
+
+## Feedback de qualidade (consentimento explícito)
+
+`POST /v1/feedback` exige a chave da API e um JSON como `{"knowledge_id":"offroad-001","reason":"incorrect","consent":true}`. Motivos permitidos: `helpful`, `incorrect`, `incomplete`, `unsafe` e `outdated`. O sistema armazena somente o ID da entrada, o motivo e a data; ignora textos livres e não publica correções automaticamente. O registro permanece `PENDING_REVIEW`.
+
+`GET /v1/feedback` exige `VERIS_OWNER_API_KEY` (chave distinta, com pelo menos 32 caracteres), definida somente no `.env` privado. Sem essa chave, não há consulta administrativa. O arquivo local pode ser configurado por `VERIS_FEEDBACK_FILE`; proteja o diretório e defina política de retenção antes de operar publicamente. Ainda não há botão de feedback na interface nem painel de revisão.
+
 ## Testes
 
 `npm.cmd run check` executa os testes da base e da API. A automação do GitHub também executa esses testes a cada alteração na branch principal.
