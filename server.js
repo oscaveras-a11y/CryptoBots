@@ -158,9 +158,6 @@ const server = http.createServer(async (req,res) => {
       const overview = topics.length ? topics.map(e => e.topic+': '+e.summary).join('\n\n') : aph.entries.map(e => e.topic).join('; ');
       return json(res,200,{tier,answer:'Material educativo de APH (não é protocolo operacional aprovado).\n\n'+overview+'\n\nEm emergência no Brasil: SAMU 192 ou Bombeiros 193. Procedimentos dependem de capacitação, protocolo local e regulação médica.',mode:'educational-reference',module:'primeiros-socorros',knowledge:topics.map(e=>({id:e.id,topic:e.topic,status:e.status})),sources:refs.map(s=>({title:s.title,url:s.url})),app_knowledge:[],needs_review:true});
     }
-    if (false) {
-      return json(res,200,{tier,answer:'O módulo de primeiros socorros ainda está em revisão profissional e não está habilitado para fornecer procedimentos. Em uma emergência, acione o serviço de emergência local. No Brasil, SAMU 192 ou Bombeiros 193.',mode:'pending-review',module:'primeiros-socorros',knowledge:[],app_knowledge:[],needs_review:true});
-    }
     const rawContext = data.context || {};
     const context = {};
     for (const [k,v] of Object.entries(rawContext)) {
