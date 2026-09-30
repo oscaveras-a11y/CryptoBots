@@ -17,6 +17,7 @@
 - API inicial Node.js com `GET /health` e `POST /v1/chat`.
 - Base 4X4: **49 registros para 50 perguntas** (a pergunta 8 foi incorporada à 2): **13 confirmados e 36 aguardando validação**.
 - Apenas entradas confirmadas e a orientação geral adicional são recuperadas automaticamente.
+- A API também calcula expressões aritméticas simples localmente, sem depender do modelo externo.
 - Busca lexical ampliada com sinônimos brasileiros e testes de regressão.
 - API de feedback consentido implementada, com consulta administrativa privada; a interface e a revisão humana ainda estão pendentes.
 - O backend do Trilha 4X4 já contém o adaptador para a API VERIS-AI; faltam os testes integrados reais no PC e no celular.

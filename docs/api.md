@@ -42,9 +42,9 @@ O serviço responde em `http://127.0.0.1:3100/health`.
 }
 ```
 
-Resposta: `answer`, `mode` (`knowledge` ou `model`), `module`, `knowledge` (IDs das fontes confirmadas) e `needs_review`.
+Resposta: `answer`, `mode` (`knowledge`, `model`, `local-calculation`, `educational-reference` ou `unavailable`), `module`, `knowledge` (IDs recuperados) e `needs_review`. `GET /health` também informa `model_configured`, que indica se a chave do provedor foi configurada; não testa a disponibilidade do provedor.
 
-O endpoint `GET /health` não exige autenticação. Sem `MODEL_API_KEY`, a API usa apenas a base confirmada. Com modelo configurado, a chave permanece no servidor. A pesquisa externa ainda não foi migrada. O backend do Trilha 4X4 já possui adaptador para `/v1/chat`, mas a integração real entre os dois servidores e o Groq ainda precisa ser validada.
+O endpoint `GET /health` não exige autenticação. Sem `MODEL_API_KEY`, a API usa a base local confirmada e resolve expressões aritméticas simples com uma calculadora local segura. Perguntas abertas fora dessas capacidades retornam `mode: unavailable`. Com modelo configurado, a chave permanece no servidor. A pesquisa externa ainda não foi migrada. O backend do Trilha 4X4 já possui adaptador para `/v1/chat`, mas a integração real entre os dois servidores e o Groq ainda precisa ser validada.
 
 **Segurança:** nunca exponha `VERIS_API_KEY` no JavaScript do navegador ou no aplicativo móvel. O backend do Trilha 4X4 autentica seus usuários e chama a VERIS-AI pelo servidor quando configurado. Para acesso externo, configurar HTTPS, autenticação e proteção adicional de infraestrutura; por padrão o serviço inicia em `127.0.0.1`. Nunca publique a interface sem autenticação.
 

@@ -13,7 +13,9 @@ const { server } = require('../server');
   try {
     const health = await fetch(url+'/health');
     assert.equal(health.status,200);
-    assert.equal((await health.json()).ok,true);
+    const healthData=await health.json();
+    assert.equal(healthData.ok,true);
+    assert.equal(healthData.model_configured,false);
     const unauthorized = await fetch(url+'/v1/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:'atolei na lama'})});
     assert.equal(unauthorized.status,401);
     const headers = {'Content-Type':'application/json','Authorization':'Bearer '+process.env.VERIS_API_KEY};
@@ -33,6 +35,12 @@ const { server } = require('../server');
       assert(generalData.answer.length>0);
       assert.equal(generalData.mode,'unavailable');
     }
+    const calculation=await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'Quanto é 125 × 48?'})});
+    assert.equal(calculation.status,200);
+    const calculationData=await calculation.json();
+    assert.equal(calculationData.mode,'local-calculation');
+    assert.equal(calculationData.module,'veris-general');
+    assert.match(calculationData.answer,/125 × 48 = 6000/);
     const tire = await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'como trocar um pneu?'})});
     assert.equal(tire.status,200);
     const tireData=await tire.json();
@@ -85,6 +93,32 @@ const { server } = require('../server');
     const secret = await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'Minha chave é sk-abcdefghijklmnopqrstuvwxyz123456789'})});
     assert.equal(secret.status,400);
     assert.equal((await secret.json()).safety,'sensitive');
+    const nativeFetch=global.fetch;
+    process.env.MODEL_API_KEY='mock-model-key';
+    let providerFails=false;
+    global.fetch=async(input,options)=>{
+      const target=String(input);
+      if(target.startsWith('https://api.groq.com/openai/v1/chat/completions')){
+        assert.equal(options.headers.Authorization,'Bearer mock-model-key');
+        if(providerFails)return new Response('provider failure',{status:503});
+        return new Response(JSON.stringify({choices:[{message:{content:'Inteligência artificial é uma área da computação que cria sistemas capazes de realizar tarefas que normalmente exigem inteligência humana.'}}]}),{status:200,headers:{'Content-Type':'application/json'}});
+      }
+      return nativeFetch(input,options);
+    };
+    const modeled=await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'Explique o que é inteligência artificial.'})});
+    assert.equal(modeled.status,200);
+    const modeledData=await modeled.json();
+    assert.equal(modeledData.mode,'model');
+    assert.match(modeledData.answer,/computação/);
+    providerFails=true;
+    const providerFallback=await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'O que é computação quântica?'})});
+    assert.equal(providerFallback.status,200);
+    const providerFallbackData=await providerFallback.json();
+    assert.equal(providerFallbackData.mode,'unavailable');
+    assert.equal(providerFallbackData.needs_review,true);
+    assert.match(providerFallbackData.answer,/base local/);
+    global.fetch=nativeFetch;
+    delete process.env.MODEL_API_KEY;
     const bad = await fetch(url+'/v1/chat',{method:'POST',headers,body:'{invalid'});
     assert.equal(bad.status,400);
     console.log('API VERIS: health, autenticação, base validada, conhecimento do app, pendências e JSON inválido OK');

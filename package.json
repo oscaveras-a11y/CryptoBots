@@ -8,6 +8,6 @@
   },
   "scripts": {
     "start": "node --env-file=.env server.js",
-    "check": "node --check server.js && node --check lib/ai-security.js && node --check lib/app-knowledge.js && node tests/ai-knowledge.js && node tests/knowledge-test-mode.js && node tests/ai-security.js && node --check lib/measurements.js && node tests/measurements.js && node --check lib/feedback.js && node tests/feedback.js && node tests/production.js && node tests/ui-branding.js && node tests/business-knowledge.js && node tests/api.js"
+    "check": "node --check server.js && node --check lib/calculator.js && node tests/calculator.js && node --check lib/ai-security.js && node --check lib/app-knowledge.js && node tests/ai-knowledge.js && node tests/knowledge-test-mode.js && node tests/ai-security.js && node --check lib/measurements.js && node tests/measurements.js && node --check lib/feedback.js && node tests/feedback.js && node tests/production.js && node tests/ui-branding.js && node tests/business-knowledge.js && node tests/api.js"
   }
 }

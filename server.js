@@ -9,6 +9,7 @@ const measurements = require('./lib/measurements');
 const feedback = require('./lib/feedback');
 const business = require('./lib/business-knowledge');
 const { avaliarEntrada, validarSaida, sanitizarCampo, contemSegredo, contemInstrucaoHostil } = require('./lib/ai-security');
+const { calcularPergunta } = require('./lib/calculator');
 
 const PORT = Number(process.env.PORT || 3100);
 const PRODUCTION = process.env.NODE_ENV === 'production';
@@ -122,7 +123,7 @@ const server = http.createServer(async (req,res) => {
     return json(res,404,{error:'Rota não encontrada'});
   }
   if (req.method === 'OPTIONS') return json(res,origin && ORIGINS.has(origin) ? 204 : 403,{});
-  if (req.method === 'GET' && req.url === '/health') return json(res,200,{ok:true,service:'VERIS-AI',version:'0.1.0'});
+  if (req.method === 'GET' && req.url === '/health') return json(res,200,{ok:true,service:'VERIS-AI',version:'0.1.0',model_configured:Boolean(process.env.MODEL_API_KEY)});
   // Piloto comercial privado: não disponibilizar no widget ou no chat público.
   if (req.url === '/v1/business/test' && req.method === 'POST') {
     if (accessTier(req)!=='owner') return json(res,403,{error:'Acesso exclusivo do proprietário'});
@@ -187,6 +188,11 @@ const server = http.createServer(async (req,res) => {
       const overview = topics.length ? topics.map(e => e.topic+': '+e.summary).join('\n\n') : aph.entries.map(e => e.topic).join('; ');
       return json(res,200,{tier,answer:'Material educativo de APH (não é protocolo operacional aprovado).\n\n'+overview+'\n\nEm emergência no Brasil: SAMU 192 ou Bombeiros 193. Procedimentos dependem de capacitação, protocolo local e regulação médica.',mode:'educational-reference',module:'primeiros-socorros',knowledge:topics.map(e=>({id:e.id,topic:e.topic,status:e.status})),sources:refs.map(s=>({title:s.title,url:s.url})),app_knowledge:[],needs_review:true});
     }
+    const calculation = calcularPergunta(question);
+    if (calculation) {
+      const expression = calculation.expression.replace(/\*/g,'×').replace(/\//g,'÷');
+      return json(res,200,{tier,answer:'Cálculo local: '+expression+' = '+calculation.value,mode:'local-calculation',module:'veris-general',knowledge:[],app_knowledge:[],needs_review:false});
+    }
     const rawContext = data.context || {};
     const context = {};
     for (const [k,v] of Object.entries(rawContext)) {
@@ -209,7 +215,7 @@ const server = http.createServer(async (req,res) => {
     const experimental = entries.some(e=>e.status==='TESTE_NAO_VALIDADA');
     const answer = internal.length
       ? (experimental ? '[EM TESTE — RESPOSTA NÃO VALIDADA]\n\n' : '') + internal.map(e=>e.answer).join('\n\n')
-      : generated || 'O modelo de IA externo não está disponível no momento. Confira a configuração do Groq e tente novamente.';
+      : generated || 'O modelo externo não está disponível. Consigo responder com a base local 4X4/Trilha 4X4 e fazer cálculos simples; para outros assuntos, configure e verifique o provedor de IA.';
     return json(res,200,{tier,answer,mode:internal.length?'knowledge':generated?'model':'unavailable',module:appEntries.length?'trilha4x4-app':generalQuestion?'veris-general':'veris-4x4',knowledge:entries.map(e=>({id:e.id,topic:e.topic,status:e.status})),app_knowledge:appEntries.map(e=>({id:e.id,topic:e.topic})),needs_review:experimental||(generalQuestion&&!generated)});
   } catch (err) { return json(res,err.status || 500,{error:err.status ? err.message : 'Erro interno'}); }
 });
