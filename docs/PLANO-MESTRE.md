@@ -62,7 +62,7 @@ VERIS-AI (Versatile Executive Reasoning & Intelligence System) é uma plataforma
                          └───────────────┼──────────────────┘
                                ┌─────────▼─────────┐
                                │ ORQUESTRADOR      │
-                               │ modelo/fallback   │
+                               │ regras e respostas│
                                │ ferramentas       │
                                │ políticas         │
                                └─────┬───────┬─────┘
@@ -147,13 +147,12 @@ VERIS-AI (Versatile Executive Reasoning & Intelligence System) é uma plataforma
 
 **Critério de saída:** melhoria mensurável da qualidade sem contaminação do conhecimento coletivo nem mistura de memórias pessoais.
 
-### Fase 4 — Pesquisa externa e múltiplos modelos
-- [ ] Pesquisar somente quando houver necessidade: atualidades, preço, legislação, disponibilidade, especificação exata ou lacuna da base.
-- [ ] Citar fontes, distinguir documentação técnica de relatos de fórum, preservar data e registrar incerteza.
-- [ ] Adaptadores substituíveis para modelos online e abertos locais, com roteamento por custo, latência e capacidade.
-- [ ] Fallback opcional (inclusive alternativas como 9Router, **somente se testadas e autorizadas**) após falha do motor principal; aplicar as mesmas regras de segurança.
-- [ ] Medir tokens, cotas, custo real, tempo de resposta e disponibilidade; desabilitar chamadas pagas não autorizadas.
-- [ ] Sem execução autônoma de ações externas ou navegação privilegiada sem escopo e autorização explícitos.
+### Fase 4 — Dados e pesquisa para o motor VERIS
+- [ ] Ampliar a cobertura com fontes autorizadas, dados licenciados e revisão humana; registrar origem, qualidade e limites de uso.
+- [ ] Construir conjuntos de treino, validação e teste sem dados pessoais nem respostas técnicas pendentes tratadas como verdade.
+- [ ] Definir metas mensuráveis de português, entendimento, segurança e domínio antes de escolher uma arquitetura neural.
+- [ ] Verificar licenças, hardware e custo de treinamento; o PC registrado com 4 GB de RAM não é suficiente para treinar um LLM útil.
+- [ ] Manter pesquisa externa desligada até existir uma integração local controlada e solicitada; sem fallback para outra IA.
 
 ### Fase 5 — VERIS-AI para sites e integrações
 - [ ] Criar widget de chat instalável em site **somente após estabilizar no Trilha 4X4**.
@@ -193,7 +192,7 @@ VERIS-AI (Versatile Executive Reasoning & Intelligence System) é uma plataforma
 - [ ] API pública/privada com documentação, SDKs, faturamento por cliente, quotas e observabilidade.
 - [ ] Catálogo de módulos especializados, permissões e memória separadas.
 - [ ] Ferramentas controladas para análise de documentos, imagens, pesquisa e automação autorizada.
-- [ ] Considerar ajuste fino de modelos abertos **apenas** com dados suficientes, licenciados e validados; comparar resultados com RAG antes de investir.
+- [ ] Estudar um modelo neural treinado pela VERIS somente quando houver corpus licenciado, capacidade computacional, orçamento e avaliações suficientes. Não usar um LLM de terceiros como motor do produto.
 - [ ] Escalabilidade, redundância, backup, gestão de incidentes e auditoria.
 - [ ] Não equiparar um assistente com várias funções a um modelo fundamental de fronteira; estabelecer metas técnicas e comerciais mensuráveis.
 
@@ -210,13 +209,13 @@ VERIS-AI (Versatile Executive Reasoning & Intelligence System) é uma plataforma
 ```text
 CI e testes da API
        ↓
-Servidor VERIS no PC → modelo opcional/fallback
+Servidor VERIS no PC → motor próprio e base local
        ↓
 Backend Trilha 4X4 → VERIS por HTTPS → testes reais no celular
        ↓
 Validação integral das 49 entradas + painel de revisão
        ↓
-Memória consentida + pesquisa externa + roteamento de modelos
+Memória consentida + corpus próprio + avaliações do motor
        ↓
 Widget para sites e atendimento empresarial
        ↓
@@ -234,7 +233,7 @@ A validação das 36 entradas pendentes pode ocorrer em paralelo aos testes da A
 1. Abrir [Actions](https://github.com/oscaveras-a11y/IA-VERIS/actions) e conferir testes da branch principal.
 2. No PC: clonar repositório, copiar `.env.example` para `.env`, gerar chave forte, executar `npm.cmd run check` e `npm.cmd start`.
 3. Confirmar `/health`, uma pergunta coberta pela KB e uma pergunta não validada; verificar que a pendente não foi tratada como confirmada.
-4. Testar o adaptador do modelo externo somente se houver acesso gratuito disponível e autorizado.
+4. Validar que a VERIS responde sem qualquer chamada de IA externa.
 5. Preparar alteração **no backend** do Trilha 4X4 para encaminhar chamadas à VERIS; nunca expor `VERIS_API_KEY` no frontend.
 6. Validar no celular e registrar resultados antes de alterar produção.
 7. Preparar o caderno de revisão das 50 perguntas, com 49 respostas únicas e marcação de cada item.
@@ -248,7 +247,7 @@ Registrar toda decisão relevante com data, responsável, alternativa considerad
 
 - Nome público padronizado para **VERIS-AI** na interface e no servidor; módulo especializado identificado como **Módulo 4X4**.
 - Backend do Trilha 4X4 já chama `/v1/chat` da VERIS-AI quando `VERIS_URL` e `VERIS_API_KEY` estão configurados, com fallback para o chat anterior se a VERIS-AI falhar.
-- Tempo limite do adaptador do Trilha ampliado para 20 segundos para acomodar chamadas ao Groq.
+- Tempo limite do adaptador do Trilha foi ampliado para 20 segundos durante a fase anterior com Groq; com o motor próprio, esse prazo será reavaliado.
 - O `.env.example` do Trilha foi limpo de um valor de chave; a chave anteriormente exposta deve ser substituída nos ambientes reais.
 - **Pendente para encerrar a Fase 1:** executar ambos os servidores no PC, confirmar respostas gerais previstas pelo motor e técnicas pela interface e pelo Trilha, testar falhas de conexão e validação no celular. Os testes de CI não substituem essa validação.
 - **Fase 2 (documentação/identidade):** README e plano mestre atualizados com a nova marca; preservar identificadores internos de API e variáveis existentes para compatibilidade.
