@@ -6,6 +6,7 @@ const path = require('node:path');
 const { buscarConhecimento, formatarConhecimento } = require('./lib/ai-knowledge');
 const { buscarApp, perguntaSobreApp } = require('./lib/app-knowledge');
 const measurements = require('./lib/measurements');
+const feedback = require('./lib/feedback');
 const { avaliarEntrada, validarSaida, sanitizarCampo, contemSegredo, contemInstrucaoHostil } = require('./lib/ai-security');
 
 const PORT = Number(process.env.PORT || 3100);
@@ -116,6 +117,18 @@ const server = http.createServer(async (req,res) => {
   }
   if (req.method === 'OPTIONS') return json(res,origin && ORIGINS.has(origin) ? 204 : 403,{});
   if (req.method === 'GET' && req.url === '/health') return json(res,200,{ok:true,service:'VERIS-AI',version:'0.1.0'});
+  if (req.url === '/v1/feedback' && req.method === 'POST') {
+    const tier=accessTier(req);
+    if(!tier)return json(res,401,{error:'Não autorizado'});
+    if(rateLimited(req,tier))return json(res,429,{error:'Limite temporário excedido'});
+    try { const record=feedback.submit(await bodyJSON(req)); return json(res,201,{feedback:record}); }
+    catch(err) {return json(res,err.status||500,{error:err.status?err.message:'Erro interno'});}
+  }
+  if (req.url === '/v1/feedback' && req.method === 'GET') {
+    if(accessTier(req)!=='owner')return json(res,403,{error:'Acesso exclusivo do proprietário'});
+    if(rateLimited(req,'owner'))return json(res,429,{error:'Limite temporário excedido'});
+    return json(res,200,{feedback:feedback.list()});
+  }
   if (req.url.startsWith('/v1/measurements/search?') && req.method === 'GET') {
     const tier=accessTier(req);
     if(!tier)return json(res,401,{error:'Não autorizado'});
