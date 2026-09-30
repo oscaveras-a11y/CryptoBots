@@ -9,7 +9,8 @@
     "Material de referência para futura curadoria; não é protocolo operacional nem habilita procedimentos.",
     "Verificar versão vigente, atribuições profissionais, treinamento e protocolo do serviço local antes de aprovar cada ficha.",
     "Não prescrever medicamentos, doses ou procedimentos invasivos; não substituir regulação médica e SAMU 192.",
-    "Nenhuma ficha deste arquivo pode ser incluída automaticamente na recuperação pública ou no fallback offline."
+    "Nenhuma ficha deste arquivo pode ser incluída automaticamente na recuperação pública ou no fallback offline.",
+    "Resumos de estudo podem ser consultados com indicação de fonte; os procedimentos clínicos continuam pendentes de revisão profissional."
   ],
   "sources": [
     {
@@ -145,5 +146,6 @@
       "approved_by": null,
       "approved_at": null
     }
-  ]
+  ],
+  "educational_summary_enabled": true
 }
