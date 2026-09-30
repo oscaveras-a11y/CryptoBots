@@ -63,7 +63,8 @@ async function bodyJSON(req) {
   catch { const err = new Error('JSON inválido'); err.status = 400; throw err; }
 }
 function languageReply(question, entries, context, appEntries = []) {
-  return gerarResposta({ pergunta:question, conhecimento:entries, conhecimentoApp:appEntries, contexto:context || {} });
+  const answer=gerarResposta({ pergunta:question, conhecimento:entries, conhecimentoApp:appEntries, contexto:context || {} });
+  return answer.startsWith('Ainda não tenho conhecimento suficiente') ? null : answer;
 }
 const server = http.createServer(async (req,res) => {
   const origin = req.headers.origin;
