@@ -70,3 +70,7 @@ No `.env` privado do Trilha 4X4, configure `VERIS_URL=http://127.0.0.1:3100` e `
 ## Testes
 
 `npm.cmd run check` executa os testes da base e da API. A automação do GitHub também executa esses testes a cada alteração na branch principal.
+
+## Modo de testes da base 4X4
+
+As 36 respostas autorizadas pelo responsável estão marcadas `TESTE_NAO_VALIDADA`. Para incluí-las nas respostas apenas em ambiente de testes, configure `VERIS_ENABLE_TEST_KNOWLEDGE=true` no `.env` privado e reinicie a VERIS-AI. Sem essa variável, a API recupera somente entradas confirmadas e orientações gerais. A resposta mantém `knowledge[].status` para identificar entradas experimentais. Não exponha este modo ao público antes da revisão técnica.
