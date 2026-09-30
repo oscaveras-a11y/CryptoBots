@@ -19,6 +19,13 @@ const { server } = require('../server');
     assert.equal(result.mode,'knowledge');
     assert(result.knowledge.length>0);
     assert(result.knowledge.every(x=>x.status==='CONFIRMADA'));
+    for (const question of ['Quanto é 125 × 48?', 'Explique o que é inteligência artificial.']) {
+      const general = await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question})});
+      assert.equal(general.status,200,'Pergunta geral bloqueada: '+question);
+      const generalData=await general.json();
+      assert.equal(typeof generalData.answer,'string');
+      assert(generalData.answer.length>0);
+    }
     const tire = await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'como trocar um pneu?'})});
     assert.equal(tire.status,200);
     const tireData=await tire.json();
