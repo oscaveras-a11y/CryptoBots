@@ -9,7 +9,7 @@ assert.match(html,/Conhecimento 4X4/);
 assert.match(html,/Matemática/);
 assert.match(html,/Inteligência artificial/);
 assert.match(html,/Programação/);
-assert.match(html,/model_configured/);
+assert.match(html,/language_engine/);
 assert.match(html,/Base local/);
 assert.match(html,/Calculadora local/);
 assert.match(html,/IA \+ base 4X4/);
