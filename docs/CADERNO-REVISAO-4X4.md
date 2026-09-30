@@ -2,7 +2,7 @@
 
 Documento de controle para revisão humana. **Não aprova automaticamente nenhum conteúdo** e não substitui documentação do fabricante ou avaliação de profissional competente. Os campos de fonte, revisor e data precisam ser preenchidos antes de alterar qualquer entrada pendente para `CONFIRMADA`.
 
-A base contém 50 entradas neste arquivo. A pergunta original 8 foi incorporada à 2, conforme histórico do projeto. As respostas completas permanecem em `knowledge/offroad.json`; este caderno não reproduz nem altera instruções técnicas.
+A base contém 50 entradas neste arquivo: 49 registros originais (13 confirmados e 36 pendentes) e uma orientação geral adicional para troca de pneu. A pergunta original 8 foi incorporada à 2, conforme histórico do projeto. As respostas completas permanecem em `knowledge/offroad.json`; este caderno não reproduz nem altera instruções técnicas.
 
 | ID | Assunto | Situação atual | Fonte técnica e versão | Revisor | Data e decisão |
 |---|---|---|---|---|---|
