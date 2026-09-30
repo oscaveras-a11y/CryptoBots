@@ -7,6 +7,9 @@
 - [Plano mestre: histórico, arquitetura, etapas, aprendizado, sites, visão, voz e geração de vídeo](docs/PLANO-MESTRE.md)
 - [API e instalação no PC](docs/api.md)
 - [Notas da migração](docs/migracao.md)
+- [Conhecimento do aplicativo Trilha 4X4](docs/CONHECIMENTO-TRILHA4X4.md)
+
+**Identidade:** VERIS-AI é o produto; 4X4 é um módulo especializado. `IA-VERIS`, `VERIS_API_KEY` e `VERIS_URL` são nomes técnicos preservados para compatibilidade.
 
 ## Estado atual
 
