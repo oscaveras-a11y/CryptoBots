@@ -13,7 +13,10 @@ const { server } = require('../server');
   try {
     const health = await fetch(url+'/health');
     assert.equal(health.status,200);
-    assert.equal((await health.json()).ok,true);
+    const healthData=await health.json();
+    assert.equal(healthData.ok,true);
+    assert.equal(healthData.model_configured,false);
+    assert.equal(healthData.language_engine,'veris-native-v1');
     const unauthorized = await fetch(url+'/v1/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:'atolei na lama'})});
     assert.equal(unauthorized.status,401);
     const headers = {'Content-Type':'application/json','Authorization':'Bearer '+process.env.VERIS_API_KEY};
@@ -25,14 +28,20 @@ const { server } = require('../server');
     assert.match(result.answer,/atol/i);
     assert(result.knowledge.length>0);
     assert(result.knowledge.every(x=>x.status==='CONFIRMADA'));
-    for (const question of ['Quanto é 125 × 48?', 'Explique o que é inteligência artificial.', 'Como subir uma montanha com segurança?']) {
+    for (const question of ['Explique o que é inteligência artificial.', 'Como subir uma montanha com segurança?']) {
       const general = await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question})});
       assert.equal(general.status,200,'Pergunta geral bloqueada: '+question);
       const generalData=await general.json();
       assert.equal(typeof generalData.answer,'string');
       assert(generalData.answer.length>0);
-      assert.equal(generalData.mode,'unavailable');
+      assert.equal(generalData.mode,question.startsWith('Explique')?'veris-native':'unavailable');
     }
+    const calculation=await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'Quanto é 125 × 48?'})});
+    assert.equal(calculation.status,200);
+    const calculationData=await calculation.json();
+    assert.equal(calculationData.mode,'local-calculation');
+    assert.equal(calculationData.module,'veris-general');
+    assert.match(calculationData.answer,/125 × 48 = 6000/);
     const tire = await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'como trocar um pneu?'})});
     assert.equal(tire.status,200);
     const tireData=await tire.json();
@@ -85,8 +94,27 @@ const { server } = require('../server');
     const secret = await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'Minha chave é sk-abcdefghijklmnopqrstuvwxyz123456789'})});
     assert.equal(secret.status,400);
     assert.equal((await secret.json()).safety,'sensitive');
+    process.env.MODEL_API_KEY='must-be-ignored';
+    const configuredHealth=await fetch(url+'/health');
+    const configuredData=await configuredHealth.json();
+    assert.equal(configuredData.model_configured,false);
+    assert.equal(configuredData.language_engine,'veris-native-v1');
+    const nativeFetch=global.fetch;
+    let externalCalls=0;
+    global.fetch=async(input,options)=>{
+      if(String(input).includes('groq.com')||String(input).includes('/chat/completions'))externalCalls++;
+      return nativeFetch(input,options);
+    };
+    const nativeReply=await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'O que é computação quântica?'})});
+    assert.equal(nativeReply.status,200);
+    const nativeData=await nativeReply.json();
+    assert.equal(nativeData.mode,'unavailable');
+    assert.match(nativeData.answer,/Ainda não tenho conhecimento suficiente/);
+    assert.equal(externalCalls,0);
+    global.fetch=nativeFetch;
+    delete process.env.MODEL_API_KEY;
     const bad = await fetch(url+'/v1/chat',{method:'POST',headers,body:'{invalid'});
     assert.equal(bad.status,400);
-    console.log('API VERIS: health, autenticação, base validada, conhecimento do app, pendências e JSON inválido OK');
+    console.log('API VERIS: motor local próprio, cálculos, conhecimento, segurança e JSON inválido OK');
   } finally { await new Promise(resolve=>server.close(resolve)); fs.rmSync(feedbackDir,{recursive:true,force:true}); }
 })().catch(err=>{console.error(err);process.exitCode=1;});
