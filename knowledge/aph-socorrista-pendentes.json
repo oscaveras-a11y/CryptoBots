@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "module": "primeiros-socorros",
+  "audience": "socorristas e equipes de atendimento pré-hospitalar",
+  "locale": "pt-BR",
+  "status": "PENDENTE_REVISAO_PROFISSIONAL",
+  "enabled_for_retrieval": false,
+  "notes": [
+    "Material de referência para futura curadoria; não é protocolo operacional nem habilita procedimentos.",
+    "Verificar versão vigente, atribuições profissionais, treinamento e protocolo do serviço local antes de aprovar cada ficha.",
+    "Não prescrever medicamentos, doses ou procedimentos invasivos; não substituir regulação médica e SAMU 192.",
+    "Nenhuma ficha deste arquivo pode ser incluída automaticamente na recuperação pública ou no fallback offline."
+  ],
+  "sources": [
+    {
+      "id": "ms-sbv",
+      "title": "Ministério da Saúde — Protocolo de Suporte Básico de Vida",
+      "url": "https://www.gov.br/saude/pt-br/composicao/saes/samu-192/publicacoes/protocolo-de-suporte-basico-de-vida-1-2.pdf/view",
+      "scope": "referência institucional; verificar versão vigente"
+    },
+    {
+      "id": "ms-samu",
+      "title": "Ministério da Saúde — SAMU 192",
+      "url": "https://www.gov.br/saude/pt-br/composicao/saes/samu-192/samu-192",
+      "scope": "acionamento e regulação"
+    },
+    {
+      "id": "sms-sp",
+      "title": "Secretaria Municipal de Saúde de São Paulo — Documentos técnicos SAMU 192",
+      "url": "https://prefeitura.sp.gov.br/web/saude/w/documentos-tecnicos-samu-192",
+      "scope": "protocolos locais; não presumir validade nacional"
+    }
+  ],
+  "entries": [
+    {
+      "id": "aph-001",
+      "topic": "Segurança da cena e avaliação inicial",
+      "summary": "Identificar riscos da cena, EPIs e necessidade de apoio; registrar estado de consciência, respiração e hemorragia visível; acionar regulação e seguir protocolo local.",
+      "source_ids": [
+        "ms-sbv",
+        "ms-samu"
+      ],
+      "status": "PENDENTE_REVISAO_PROFISSIONAL",
+      "approved_by": null,
+      "approved_at": null
+    },
+    {
+      "id": "aph-002",
+      "topic": "Comunicação com a central de regulação",
+      "summary": "Registrar localização, acesso, quantidade de vítimas, riscos, mecanismo da ocorrência, sinais observados e recursos disponíveis; transmitir informações sem diagnóstico presumido.",
+      "source_ids": [
+        "ms-samu"
+      ],
+      "status": "PENDENTE_REVISAO_PROFISSIONAL",
+      "approved_by": null,
+      "approved_at": null
+    },
+    {
+      "id": "aph-003",
+      "topic": "Avaliação primária e reavaliação",
+      "summary": "Estudar sequência de avaliação primária, priorização de ameaças imediatas, sinais vitais e reavaliação seriada conforme competência e protocolo do serviço.",
+      "source_ids": [
+        "ms-sbv"
+      ],
+      "status": "PENDENTE_REVISAO_PROFISSIONAL",
+      "approved_by": null,
+      "approved_at": null
+    },
+    {
+      "id": "aph-004",
+      "topic": "Hemorragia externa e prevenção de agravamento",
+      "summary": "Revisar reconhecimento de sangramento ameaçador à vida, controle inicial e critérios de escalonamento; técnicas e equipamentos dependem de capacitação e protocolo.",
+      "source_ids": [
+        "ms-sbv"
+      ],
+      "status": "PENDENTE_REVISAO_PROFISSIONAL",
+      "approved_by": null,
+      "approved_at": null
+    },
+    {
+      "id": "aph-005",
+      "topic": "Parada cardiorrespiratória e DEA",
+      "summary": "Estudar reconhecimento de parada, acionamento de ajuda, RCP de qualidade e uso de DEA conforme diretrizes vigentes e treinamento.",
+      "source_ids": [
+        "ms-sbv"
+      ],
+      "status": "PENDENTE_REVISAO_PROFISSIONAL",
+      "approved_by": null,
+      "approved_at": null
+    },
+    {
+      "id": "aph-006",
+      "topic": "Trauma e suspeita de lesão de coluna",
+      "summary": "Estudar avaliação do mecanismo, identificação de sinais de gravidade e restrição de movimentos conforme indicação; não presumir imobilização universal.",
+      "source_ids": [
+        "ms-sbv"
+      ],
+      "status": "PENDENTE_REVISAO_PROFISSIONAL",
+      "approved_by": null,
+      "approved_at": null
+    },
+    {
+      "id": "aph-007",
+      "topic": "Suspeita de AVC e dor torácica",
+      "summary": "Estudar reconhecimento precoce, horário de início dos sintomas, acionamento de regulação e comunicação estruturada; não prescrever nem atrasar transporte.",
+      "source_ids": [
+        "ms-sbv",
+        "ms-samu"
+      ],
+      "status": "PENDENTE_REVISAO_PROFISSIONAL",
+      "approved_by": null,
+      "approved_at": null
+    },
+    {
+      "id": "aph-008",
+      "topic": "Alterações de consciência e glicemia",
+      "summary": "Estudar avaliação de consciência, causas possíveis, mensuração de glicemia quando autorizada e critérios de encaminhamento conforme protocolo.",
+      "source_ids": [
+        "ms-sbv"
+      ],
+      "status": "PENDENTE_REVISAO_PROFISSIONAL",
+      "approved_by": null,
+      "approved_at": null
+    },
+    {
+      "id": "aph-009",
+      "topic": "Emergências ambientais em trilhas",
+      "summary": "Planejar fichas específicas para calor, frio, afogamento, acidentes com animais e locais remotos; exigir fontes específicas antes de orientar condutas.",
+      "source_ids": [
+        "ms-samu"
+      ],
+      "status": "PENDENTE_REVISAO_PROFISSIONAL",
+      "approved_by": null,
+      "approved_at": null
+    },
+    {
+      "id": "aph-010",
+      "topic": "Registro, transferência e limites profissionais",
+      "summary": "Padronizar horário, achados observáveis, intervenções autorizadas, evolução e passagem de caso; distinguir socorrista leigo, condutor socorrista e profissional de saúde.",
+      "source_ids": [
+        "ms-sbv",
+        "sms-sp"
+      ],
+      "status": "PENDENTE_REVISAO_PROFISSIONAL",
+      "approved_by": null,
+      "approved_at": null
+    }
+  ]
+}
