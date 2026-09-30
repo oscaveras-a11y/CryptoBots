@@ -198,11 +198,12 @@ const server = http.createServer(async (req,res) => {
     const appEntries = perguntaSobreApp(question) ? buscarApp(question) : [];
     const entries = appEntries.length ? [] : buscarConhecimento(question);
     const generated = await modelReply(question,entries,context,appEntries);
+    const generalQuestion = !entries.length && !appEntries.length;
     const answer = generated || (appEntries.length
       ? appEntries.map(e=>e.answer).join('\n\n')
       : entries.length ? entries.map(e=>e.answer).join('\n\n')
-      : 'Ainda não tenho conhecimento local suficiente para responder a essa pergunta. Para respostas gerais, configure um modelo de IA externo na VERIS-AI.');
-    return json(res,200,{tier,answer,mode:generated?'model':'knowledge',module:appEntries.length?'trilha4x4-app':'veris-4x4',knowledge:entries.map(e=>({id:e.id,topic:e.topic,status:e.status})),app_knowledge:appEntries.map(e=>({id:e.id,topic:e.topic})),needs_review:!entries.length&&!appEntries.length});
+      : 'O modelo de IA externo não está disponível no momento. Confira a configuração do Groq e tente novamente.');
+    return json(res,200,{tier,answer,mode:generated?'model':'knowledge',module:appEntries.length?'trilha4x4-app':generalQuestion?'veris-general':'veris-4x4',knowledge:entries.map(e=>({id:e.id,topic:e.topic,status:e.status})),app_knowledge:appEntries.map(e=>({id:e.id,topic:e.topic})),needs_review:generalQuestion&&!generated});
   } catch (err) { return json(res,err.status || 500,{error:err.status ? err.message : 'Erro interno'}); }
 });
 if (require.main === module) {
