@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
   "notes": [
-    "Modelo de configuração, não contém catálogo, preços ou políticas verificadas.",
-    "Copie para arquivo privado e configure VERIS_BUSINESS_FILE; não publique dados privados."
+    "Catálogo inicial transcrito dos preços informados pelo responsável na conversa de criação do site; valores históricos sujeitos a atualização.",
+    "Não declarar estoque dos produtos sem confirmação; dois itens foram marcados como vendidos na conversa anterior.",
+    "Modelo privado de piloto: loja permanece desabilitada e nenhuma FAQ é publicada automaticamente."
   ],
   "businesses": [
     {
@@ -10,7 +11,62 @@
       "name": "LF Moda Feminina",
       "enabled": false,
       "fallback_message": "Para confirmar produtos, tamanhos, preços e disponibilidade, entre em contato diretamente com a loja.",
-      "faq": []
+      "faq": [],
+      "location": "Guaporé, RS",
+      "whatsapp": "+55 54 99974-9569",
+      "instagram": "https://www.instagram.com/lf_moda_feminina_guapore?stkn=eXI1amFqbmM1dzZm",
+      "catalog_source": "Conversa de criação do site LF Moda Feminina, setembro de 2026",
+      "catalog_review_required": true,
+      "catalog": [
+        {
+          "name": "Casaco de pelo preto",
+          "price_brl": 155,
+          "status": "estoque_nao_confirmado",
+          "price_review_required": true
+        },
+        {
+          "name": "Blusa de gola alta",
+          "price_brl": 50,
+          "status": "estoque_nao_confirmado",
+          "price_review_required": true
+        },
+        {
+          "name": "Tricô lilás",
+          "price_brl": 90,
+          "status": "estoque_nao_confirmado",
+          "price_review_required": true
+        },
+        {
+          "name": "Vestido verde estampado",
+          "price_brl": 65,
+          "status": "estoque_nao_confirmado",
+          "price_review_required": true
+        },
+        {
+          "name": "Vestido vermelho",
+          "price_brl": 120,
+          "status": "estoque_nao_confirmado",
+          "price_review_required": true
+        },
+        {
+          "name": "Conjunto estampado rosa",
+          "price_brl": 110,
+          "status": "estoque_nao_confirmado",
+          "price_review_required": true
+        },
+        {
+          "name": "Vestido estampado tropical amarelo",
+          "price_brl": null,
+          "status": "vendido",
+          "price_review_required": true
+        },
+        {
+          "name": "Vestido midi estampado",
+          "price_brl": 80,
+          "status": "vendido",
+          "price_review_required": true
+        }
+      ]
     }
   ]
 }
