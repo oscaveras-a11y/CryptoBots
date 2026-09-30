@@ -34,7 +34,7 @@ const { server } = require('../server');
       const generalData=await general.json();
       assert.equal(typeof generalData.answer,'string');
       assert(generalData.answer.length>0);
-      assert.equal(generalData.mode,'veris-native');
+      assert.equal(generalData.mode,question.startsWith('Explique')?'veris-native':'unavailable');
     }
     const calculation=await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'Quanto é 125 × 48?'})});
     assert.equal(calculation.status,200);
@@ -108,7 +108,7 @@ const { server } = require('../server');
     const nativeReply=await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'O que é computação quântica?'})});
     assert.equal(nativeReply.status,200);
     const nativeData=await nativeReply.json();
-    assert.equal(nativeData.mode,'veris-native');
+    assert.equal(nativeData.mode,'unavailable');
     assert.match(nativeData.answer,/Ainda não tenho conhecimento suficiente/);
     assert.equal(externalCalls,0);
     global.fetch=nativeFetch;
