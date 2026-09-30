@@ -17,7 +17,7 @@ VERIS-AI (Versatile Executive Reasoning & Intelligence System) é uma plataforma
 - **Segurança em campo:** em procedimentos de risco, priorizar estabilização, avaliação do terreno, pontos de recuperação dimensionados, exclusão de pessoas, prevenção de incêndio e assistência quando houver incerteza. Não inventar medidas, torques ou capacidades.
 - **Aprendizado supervisionado:** novas perguntas e correções são candidatas a conhecimento; somente revisão e aprovação liberam uso coletivo. Memória pessoal ≠ conhecimento validado.
 - **Privacidade:** consentimento, isolamento entre usuários/clientes, segredos apenas no backend, retenção limitada, proteção contra abuso e acesso administrativo auditável.
-- **Evolução sem interrupção:** manter a IA atual do Trilha 4X4 enquanto VERIS não passar em testes de integração e campo.
+- **Evolução sem interrupção:** manter a IA atual do Trilha 4X4 enquanto a VERIS-AI não passar em testes de integração e campo.
 
 ## 2. Inventário: o que já existe e o que falta
 
@@ -34,7 +34,7 @@ VERIS-AI (Versatile Executive Reasoning & Intelligence System) é uma plataforma
 | `.env.example`, documentação e workflow de testes | Publicados | Confirmar resultados do CI e testes locais |
 | Pesquisa externa | Existe experiência anterior no Trilha 4X4 com Tavily; **não migrada para VERIS** | Adaptador opcional com fontes e política de custo |
 | Memória por usuário | Experiência anterior no app (armazenamento local limitado); **não migrada como memória central VERIS** | Desenhar consentimento e retenção |
-| Integração Trilha 4X4 → VERIS | **Não realizada** | Fazer backend do app chamar a API sem expor a chave no navegador |
+| Integração Trilha 4X4 → VERIS-AI | Adaptador implementado no backend; testes reais pendentes | Validar conexão local, Groq e celular sem expor a chave |
 | Hospedagem em PC | Planejada, ainda não instalada/testada neste repositório | Instalar e testar em localhost; depois túnel HTTPS |
 | Site e outros clientes | Planejados | Somente depois de estabilizar o aplicativo |
 | Geração de vídeo | Projeto futuro **pausado** | Protótipo isolado no PC, sem integrar ao app antes de funcionar |
@@ -56,7 +56,7 @@ VERIS-AI (Versatile Executive Reasoning & Intelligence System) é uma plataforma
                                 └────────┬────────┘
                          ┌───────────────┼──────────────────┐
                   ┌──────▼──────┐ ┌──────▼──────┐ ┌─────────▼─────────┐
-                  │ Módulo 4X4 │ │ VERIS Sites │ │ Módulos futuros   │
+                  │ Módulo 4X4 │ │ Módulo Sites│ │ Módulos futuros   │
                   │ RAG / KB   │ │ KB isolada  │ │ voz / visão/vídeo │
                   └──────┬──────┘ └──────┬──────┘ └─────────┬─────────┘
                          └───────────────┼──────────────────┘
@@ -95,7 +95,7 @@ VERIS-AI (Versatile Executive Reasoning & Intelligence System) é uma plataforma
 - Ênfase em veículos preparados: conjuntos de diferentes marcas e origens, sem confiar em especificação de veículo original. Antes de sugerir remover cardã/semieixo, conduzir com falha de transmissão, usar guincho ou definir pressão de pneu, pedir a configuração real e reconhecer limites de segurança.
 - Motor de conhecimento migrado para repositório separado com testes iniciais.
 
-### Independência da VERIS
+### Independência da VERIS-AI
 - Repositório privado `IA-VERIS` criado em 29/09/2026, nome escolhido para permitir outras especializações.
 - API inicial, documentação, variáveis de ambiente e workflow de testes adicionados.
 - Decisão: **rodar primeiro no PC do usuário**, conectar ao Trilha 4X4 por API HTTPS e migrar para hospedagem 24h somente quando uso real justificar.
@@ -120,8 +120,8 @@ VERIS-AI (Versatile Executive Reasoning & Intelligence System) é uma plataforma
 - [ ] Testar consulta offline à base confirmada (servidor local, sem provedor externo).
 - [ ] Testar modelo online opcional e fallback seguro se houver indisponibilidade, custo ou limite.
 - [ ] Publicar via Cloudflare Tunnel HTTPS para testes controlados; URL fixa/domínio apenas quando configurado.
-- [ ] Integrar **backend** do Trilha 4X4 ao `/v1/chat` da VERIS, preservando login, limite por usuário e interface atual.
-- [ ] Garantir que, com VERIS fora do ar, o app informe indisponibilidade ou use fallback existente de forma explícita; não mascarar erro com resposta inventada.
+- [x] Implementar adaptador no **backend** do Trilha 4X4 para `/v1/chat` da VERIS-AI, preservando login e interface atual; validação integrada pendente.
+- [x] Implementar fallback para o chat anterior quando a VERIS-AI falhar; ainda testar no PC e celular que, com a VERIS-AI fora do ar, o app informe indisponibilidade ou use fallback existente de forma explícita; não mascarar erro com resposta inventada.
 - [ ] Testar em PC e iPhone/Android: autenticação, perguntas difíceis, tempo de resposta, internet instável, falhas do túnel, vazamento de chave e comportamento do SOS (sem depender da IA).
 - [ ] Só desativar lógica duplicada da IA antiga depois da aprovação dos testes.
 
@@ -155,9 +155,9 @@ VERIS-AI (Versatile Executive Reasoning & Intelligence System) é uma plataforma
 - [ ] Medir tokens, cotas, custo real, tempo de resposta e disponibilidade; desabilitar chamadas pagas não autorizadas.
 - [ ] Sem execução autônoma de ações externas ou navegação privilegiada sem escopo e autorização explícitos.
 
-### Fase 5 — VERIS para sites e integrações
+### Fase 5 — VERIS-AI para sites e integrações
 - [ ] Criar widget de chat instalável em site **somente após estabilizar no Trilha 4X4**.
-- [ ] Primeiro piloto possível: LF Moda Feminina, com catálogo, tamanhos, políticas e atendimento fornecidos pela loja; **base separada da VERIS 4X4**.
+- [ ] Primeiro piloto possível: LF Moda Feminina, com catálogo, tamanhos, políticas e atendimento fornecidos pela loja; **base separada do módulo 4X4**.
 - [ ] API multi-tenant: credenciais por cliente, limites de uso, origem permitida, isolamento de dados, logs e métricas.
 - [ ] Futuro: integração WhatsApp Business por canal oficial, respeitando preços e regras do provedor; chatbot simples sem IA como opção para clientes.
 - [ ] Painel de conhecimento por negócio, transferência para atendente humano e configuração de horários/escopo.
@@ -171,7 +171,7 @@ VERIS-AI (Versatile Executive Reasoning & Intelligence System) é uma plataforma
 - [ ] Consentimento e limites para imagens de pessoas, placas, localização, áudio e dados sensíveis.
 - [ ] Testar desempenho, cotas e custo por modalidade antes de habilitar para todos.
 
-### Fase 7 — Motor de geração de vídeo VERIS [FUTURO, PROJETO PAUSADO]
+### Fase 7 — Motor de geração de vídeo VERIS-AI [FUTURO, PROJETO PAUSADO]
 **Escopo acordado:** desenvolvimento e testes **somente no PC**; não integrar ao Trilha 4X4 até gerar vídeos de qualidade aceitável. **Meta inicial R$0**, sem assinatura ou consumo automático de créditos pagos.
 
 **Capacidades desejadas em ordem:**
@@ -252,3 +252,11 @@ Registrar toda decisão relevante com data, responsável, alternativa considerad
 - O `.env.example` do Trilha foi limpo de um valor de chave; a chave anteriormente exposta deve ser substituída nos ambientes reais.
 - **Pendente para encerrar a Fase 1:** executar ambos os servidores no PC, confirmar respostas gerais e técnicas pela interface e pelo Trilha, testar Groq real, falhas de conexão e validação no celular. Os testes de CI não substituem essa validação.
 - **Fase 2 (documentação/identidade):** README e plano mestre atualizados com a nova marca; preservar identificadores internos de API e variáveis existentes para compatibilidade.
+
+
+## Etapa de identidade e documentação — atualização
+
+- Identidade pública: **VERIS-AI**. **Módulo 4X4** identifica apenas a especialização off-road; **Trilha 4X4** é o aplicativo cliente.
+- Interface, identificação de serviço, README, documentação de API, notas de migração e documentação do conhecimento do aplicativo padronizados.
+- Nome do repositório `IA-VERIS`, variáveis `VERIS_API_KEY` e `VERIS_URL` e caminhos de API mantidos para não quebrar configurações existentes.
+- Documentado o procedimento local de conexão com o Trilha 4X4, os erros básicos e o estado real da integração. Testes de execução conjunta no computador, Groq real e celular continuam pendentes.
