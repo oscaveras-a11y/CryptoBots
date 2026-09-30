@@ -260,3 +260,11 @@ Registrar toda decisão relevante com data, responsável, alternativa considerad
 - Interface, identificação de serviço, README, documentação de API, notas de migração e documentação do conhecimento do aplicativo padronizados.
 - Nome do repositório `IA-VERIS`, variáveis `VERIS_API_KEY` e `VERIS_URL` e caminhos de API mantidos para não quebrar configurações existentes.
 - Documentado o procedimento local de conexão com o Trilha 4X4, os erros básicos e o estado real da integração. Testes de execução conjunta no computador, Groq real e celular continuam pendentes.
+
+
+## Avanço da qualidade — 30/09/2026
+
+- Implementada normalização de sinônimos regionais em `lib/ai-knowledge.js`, com regressões para atolamento, pneus e exclusão de conteúdo pendente.
+- Criado `docs/CADERNO-REVISAO-4X4.md`: inventário individual dos 49 registros originais (13 confirmados, 36 pendentes) mais uma orientação geral adicional. Nenhuma entrada pendente foi aprovada automaticamente.
+- Implementada API `POST /v1/feedback` com consentimento explícito e motivos enumerados, sem armazenamento de perguntas em texto livre. `GET /v1/feedback` é exclusivo da chave administrativa; não há publicação automática.
+- Pendências da etapa de qualidade: revisão técnica humana dos 36 registros, fontes e versões específicas por entrada, interface de feedback, política de retenção e avaliação em uso real.
