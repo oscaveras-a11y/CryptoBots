@@ -10,6 +10,9 @@ const feedback = require('./lib/feedback');
 const { avaliarEntrada, validarSaida, sanitizarCampo, contemSegredo, contemInstrucaoHostil } = require('./lib/ai-security');
 
 const PORT = Number(process.env.PORT || 3100);
+const PRODUCTION = process.env.NODE_ENV === 'production';
+const UI_ENABLED = !PRODUCTION && process.env.VERIS_DISABLE_TEST_UI !== 'true';
+if (PRODUCTION && process.env.VERIS_ENABLE_TEST_KNOWLEDGE === 'true') throw new Error('Base experimental proibida em produção');
 const HOST = process.env.HOST || '127.0.0.1';
 const API_KEY = process.env.VERIS_API_KEY || '';
 const OWNER_KEY = process.env.VERIS_OWNER_API_KEY || '';
@@ -93,11 +96,13 @@ const server = http.createServer(async (req,res) => {
     res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS');
   }
   // Interface sem login para testes; a chave da API nunca é enviada ao navegador.
+  if (req.url === '/' && req.method === 'GET' && !UI_ENABLED) return json(res,404,{error:'Interface de testes desabilitada'});
   if (req.url === '/' && req.method === 'GET') {
     const page=fs.readFileSync(path.join(__dirname,'public','index.html'));
     res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"});
     return res.end(page);
   }
+  if (req.url.startsWith('/ui/') && !UI_ENABLED) return json(res,404,{error:'Interface de testes desabilitada'});
   if (req.url.startsWith('/ui/')) {
     if (req.method!=='POST') return json(res,404,{error:'Rota não encontrada'});
     // A interface é aberta apenas para testes: manter a porta do Codespaces privada.
