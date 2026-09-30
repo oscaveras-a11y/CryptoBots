@@ -2,7 +2,7 @@
 const assert=require('assert');
 const {avaliarEntrada,sanitizarMemoria,sanitizarFonte,validarSaida,autorizarFerramenta,construirContextoSeguro}=require('../lib/ai-security');
 
-const allowed=['Qual óleo usar no diferencial do meu 4x4?','Como altero minha senha no app 4x4?','oi','Temperatura normal do motor da S10?','Como funciona a embreagem?','como faz se eu ficar atolado','Como recuperar um carro atolado?'];
+const allowed=['Qual óleo usar no diferencial do meu 4x4?','Como altero minha senha no app 4x4?','oi','Temperatura normal do motor da S10?','Como funciona a embreagem?','como faz se eu ficar atolado','Como recuperar um carro atolado?','primeiros socorros'];
 for(const q of allowed) assert.equal(avaliarEntrada(q).ok,true,q);
 
 const attacks=[
