@@ -183,7 +183,7 @@ const server = http.createServer(async (req,res) => {
     const appEntries = !technicalIntent && perguntaSobreApp(question) ? buscarApp(question) : [];
     // Evita que a simples menção a um veículo seja interpretada como dúvida sobre o aplicativo.
     if (appEntries.length) entries.length = 0;
-    // Respostas internas aprovadas têm prioridade sobre o modelo externo.
+    // O motor VERIS responde com conhecimento local; conteúdo experimental continua fora dele.
     // Conhecimento experimental só é recuperado no modo privado de testes.
     const internal = appEntries.length ? appEntries : entries;
     const generalQuestion = !internal.length;
