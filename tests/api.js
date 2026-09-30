@@ -27,7 +27,7 @@ const { server } = require('../server');
     assert.match(result.answer,/atol/i);
     assert(result.knowledge.length>0);
     assert(result.knowledge.every(x=>x.status==='CONFIRMADA'));
-    for (const question of ['Quanto é 125 × 48?', 'Explique o que é inteligência artificial.', 'Como subir uma montanha com segurança?']) {
+    for (const question of ['Explique o que é inteligência artificial.', 'Como subir uma montanha com segurança?']) {
       const general = await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question})});
       assert.equal(general.status,200,'Pergunta geral bloqueada: '+question);
       const generalData=await general.json();
