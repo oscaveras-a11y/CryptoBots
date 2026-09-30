@@ -51,7 +51,7 @@ const { server } = require('../server');
     assert.equal(my4x4Data.mode,'knowledge');
     assert(my4x4Data.knowledge.some(e=>e.id==='offroad-001'));
     assert.equal(my4x4Data.app_knowledge.length,0);
-    assert.doesNotMatch(my4x4Data.answer,/aplicativo web\\/PWA/i);
+    assert.equal(my4x4Data.answer.includes('aplicativo web/PWA'),false);
     const pending = await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'semieixo homocinética quebrada'})});
     assert.equal(pending.status,200);
     const p = await pending.json();
