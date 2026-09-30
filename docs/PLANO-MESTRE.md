@@ -67,8 +67,8 @@ VERIS-AI (Versatile Executive Reasoning & Intelligence System) é uma plataforma
                                │ políticas         │
                                └─────┬───────┬─────┘
                         ┌────────────▼┐ ┌────▼────────────────┐
-                        │ Memória com │ │ Modelos locais ou  │
-                        │ consentimento│ │ provedores externos│
+                         │ Motor de linguagem VERIS │
+                         │ consentimento│ │ base e motor próprios    │
                         └─────────────┘ └─────────────────────┘
 ```
 
