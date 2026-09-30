@@ -21,6 +21,8 @@ const { server } = require('../server');
     assert.equal(ok.status,200);
     const result = await ok.json();
     assert.equal(result.mode,'knowledge');
+    assert.equal(result.module,'veris-4x4');
+    assert.match(result.answer,/atol/i);
     assert(result.knowledge.length>0);
     assert(result.knowledge.every(x=>x.status==='CONFIRMADA'));
     for (const question of ['Quanto é 125 × 48?', 'Explique o que é inteligência artificial.', 'Como subir uma montanha com segurança?']) {
@@ -29,11 +31,13 @@ const { server } = require('../server');
       const generalData=await general.json();
       assert.equal(typeof generalData.answer,'string');
       assert(generalData.answer.length>0);
+      assert.equal(generalData.mode,'unavailable');
     }
     const tire = await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'como trocar um pneu?'})});
     assert.equal(tire.status,200);
     const tireData=await tire.json();
     assert.deepEqual(tireData.knowledge.map(e=>e.id),['offroad-051']);
+    assert.equal(tireData.mode,'knowledge');
     assert.match(tireData.answer,/macaco/i);
     assert.doesNotMatch(tireData.answer,/beadlock/i);
     const stuck = await fetch(url+'/v1/chat',{method:'POST',headers,body:JSON.stringify({question:'como faz se eu ficar atolado?'})});
