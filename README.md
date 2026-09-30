@@ -23,3 +23,7 @@
 - A geração de vídeo é projeto futuro, inicialmente experimental apenas no PC e com meta de custo R$0.
 
 **Prioridade:** estabilizar a VERIS-AI no aplicativo Trilha 4X4 antes de integrá-la a sites ou ativar novos módulos.
+
+## Operação e hospedagem
+
+Consulte [o guia de operação e publicação segura](docs/OPERACAO-PRODUCAO.md). Em produção, configure `NODE_ENV=production`: a interface aberta de testes fica desabilitada e a base experimental é bloqueada. A hospedagem HTTPS e os testes reais de integração ainda precisam ser concluídos.
