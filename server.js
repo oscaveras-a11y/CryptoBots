@@ -149,6 +149,9 @@ const server = http.createServer(async (req,res) => {
     const safety = avaliarEntrada(data.question);
     if (!safety.ok) return json(res,400,{error:'Pergunta bloqueada pela validação de segurança',safety:safety.code});
     const question = safety.text;
+    if (/\b(primeiros? socorros?|socorr\w*|engasg\w*|ferimentos?)\b/i.test(question)) {
+      return json(res,200,{tier,answer:'O módulo de primeiros socorros ainda está em revisão profissional e não está habilitado para fornecer procedimentos. Em uma emergência, acione o serviço de emergência local. No Brasil, SAMU 192 ou Bombeiros 193.',mode:'pending-review',module:'primeiros-socorros',knowledge:[],app_knowledge:[],needs_review:true});
+    }
     const rawContext = data.context || {};
     const context = {};
     for (const [k,v] of Object.entries(rawContext)) {
