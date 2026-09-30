@@ -8,6 +8,7 @@
 - [API e instalação no PC](docs/api.md)
 - [Notas da migração](docs/migracao.md)
 - [Conhecimento do aplicativo Trilha 4X4](docs/CONHECIMENTO-TRILHA4X4.md)
+- [Caderno de revisão técnica individual](docs/CADERNO-REVISAO-4X4.md)
 
 **Identidade:** VERIS-AI é o produto; 4X4 é um módulo especializado. `IA-VERIS`, `VERIS_API_KEY` e `VERIS_URL` são nomes técnicos preservados para compatibilidade.
 
@@ -15,7 +16,9 @@
 
 - API inicial Node.js com `GET /health` e `POST /v1/chat`.
 - Base 4X4: **49 registros para 50 perguntas** (a pergunta 8 foi incorporada à 2): **13 confirmados e 36 aguardando validação**.
-- Apenas entradas confirmadas são recuperadas automaticamente.
+- Apenas entradas confirmadas e a orientação geral adicional são recuperadas automaticamente.
+- Busca lexical ampliada com sinônimos brasileiros e testes de regressão.
+- API de feedback consentido implementada, com consulta administrativa privada; a interface e a revisão humana ainda estão pendentes.
 - O backend do Trilha 4X4 já contém o adaptador para a API VERIS-AI; faltam os testes integrados reais no PC e no celular.
 - A geração de vídeo é projeto futuro, inicialmente experimental apenas no PC e com meta de custo R$0.
 
