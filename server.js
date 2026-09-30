@@ -3,12 +3,12 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { buscarConhecimento, formatarConhecimento } = require('./lib/ai-knowledge');
+const { buscarConhecimento } = require('./lib/ai-knowledge');
 const { buscarApp, perguntaSobreApp } = require('./lib/app-knowledge');
 const measurements = require('./lib/measurements');
 const feedback = require('./lib/feedback');
 const business = require('./lib/business-knowledge');
-const { avaliarEntrada, validarSaida, sanitizarCampo, contemSegredo, contemInstrucaoHostil } = require('./lib/ai-security');
+const { avaliarEntrada, sanitizarCampo, contemSegredo, contemInstrucaoHostil } = require('./lib/ai-security');
 const { calcularPergunta } = require('./lib/calculator');
 const { gerarResposta } = require('./lib/language-engine');
 
@@ -194,7 +194,7 @@ const server = http.createServer(async (req,res) => {
     const answer = generated || (internal.length
       ? (experimental ? '[EM TESTE — RESPOSTA NÃO VALIDADA]\n\n' : '') + internal.map(e=>e.answer).join('\n\n')
       : 'Ainda não tenho conhecimento suficiente para responder isso com segurança.');
-    return json(res,200,{tier,answer,mode:generated?'veris-native':internal.length?'knowledge':'unavailable',module:appEntries.length?'trilha4x4-app':generalQuestion?'veris-general':'veris-4x4',knowledge:entries.map(e=>({id:e.id,topic:e.topic,status:e.status})),app_knowledge:appEntries.map(e=>({id:e.id,topic:e.topic})),needs_review:experimental||(generalQuestion&&!generated)});
+    return json(res,200,{tier,answer,mode:generated?(internal.length?'knowledge':'veris-native'):internal.length?'knowledge':'unavailable',module:appEntries.length?'trilha4x4-app':generalQuestion?'veris-general':'veris-4x4',knowledge:entries.map(e=>({id:e.id,topic:e.topic,status:e.status})),app_knowledge:appEntries.map(e=>({id:e.id,topic:e.topic})),needs_review:experimental||(generalQuestion&&!generated)});
   } catch (err) { return json(res,err.status || 500,{error:err.status ? err.message : 'Erro interno'}); }
 });
 if (require.main === module) {
