@@ -12,8 +12,6 @@ const PORT = Number(process.env.PORT || 3100);
 const HOST = process.env.HOST || '127.0.0.1';
 const API_KEY = process.env.VERIS_API_KEY || '';
 const OWNER_KEY = process.env.VERIS_OWNER_API_KEY || '';
-const UI_PASSWORD = process.env.VERIS_UI_PASSWORD || '';
-const uiSessions = new Map();
 const OWNER_LIMIT = Math.min(600,Math.max(20,Number(process.env.VERIS_OWNER_RATE_LIMIT)||120));
 const ORIGINS = new Set((process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean));
 const buckets = new Map();
@@ -93,37 +91,17 @@ const server = http.createServer(async (req,res) => {
     res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type');
     res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS');
   }
-  // A interface web usa sessão HttpOnly; a chave da API nunca é enviada ao navegador.
+  // Interface sem login para testes; a chave da API nunca é enviada ao navegador.
   if (req.url === '/' && req.method === 'GET') {
     const page=fs.readFileSync(path.join(__dirname,'public','index.html'));
     res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"});
     return res.end(page);
   }
   if (req.url.startsWith('/ui/')) {
-    const cookie=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('veris_session='));
-    const token=cookie?cookie.slice('veris_session='.length):'';
-    const session=uiSessions.get(token);
-    const authenticated=!!session&&session>Date.now();
-    if (req.url==='/ui/session'&&req.method==='GET') return json(res,authenticated?200:401,{authenticated});
     if (req.method!=='POST') return json(res,404,{error:'Rota não encontrada'});
-    // Bloqueia POSTs de outras origens; requisições do navegador têm Origin.
+    // A interface é aberta apenas para testes: manter a porta do Codespaces privada.
     if (!origin || new URL(origin).host!==req.headers.host) return json(res,403,{error:'Origem não permitida'});
-    if (req.url==='/ui/login') {
-      if (!UI_PASSWORD || UI_PASSWORD.length<32) return json(res,503,{error:'Configure VERIS_UI_PASSWORD com pelo menos 32 caracteres'});
-      if(rateLimited(req,'standard')) return json(res,429,{error:'Tente novamente em um minuto'});
-      try {
-        const data=await bodyJSON(req);
-        if(typeof data.password!=='string'||!keyMatches(data.password,UI_PASSWORD))return json(res,401,{error:'Senha incorreta'});
-        const id=crypto.randomBytes(32).toString('hex');
-        uiSessions.set(id,Date.now()+8*60*60*1000);
-        if(uiSessions.size>500)for(const [k,v] of uiSessions)if(v<Date.now())uiSessions.delete(k);
-        const secure=req.headers['x-forwarded-proto']==='https'||req.socket.encrypted?' Secure;':'';
-        return json(res,200,{ok:true},{'Set-Cookie':'veris_session='+id+'; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800;'+secure});
-      }catch(err){return json(res,err.status||400,{error:err.status?err.message:'Solicitação inválida'});}
-    }
     if(req.url==='/ui/chat'){
-      if(!authenticated)return json(res,401,{error:'Faça login'});
-      if(rateLimited(req,'standard'))return json(res,429,{error:'Limite de mensagens atingido'});
       try {
         const data=await bodyJSON(req);
         if(typeof data.question!=='string'||!data.question.trim()||data.question.length>2000)return json(res,400,{error:'Pergunta inválida'});
