@@ -95,6 +95,8 @@ const { server } = require('../server');
     assert.equal((await secret.json()).safety,'sensitive');
     const nativeFetch=global.fetch;
     process.env.MODEL_API_KEY='mock-model-key';
+    const configuredHealth=await fetch(url+'/health');
+    assert.equal((await configuredHealth.json()).model_configured,true);
     let providerFails=false;
     global.fetch=async(input,options)=>{
       const target=String(input);
