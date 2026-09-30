@@ -205,7 +205,7 @@ const server = http.createServer(async (req,res) => {
     }
     // Recuperação técnica antes da documentação do aplicativo para questões mecânicas ou de condução.
     const technicalIntent = /\b(atol\w*|desatol\w*|encalh\w*|guinch\w*|pneu\w*|calibr\w*|embreagem|diferencial|homocinetica|carda|motor|freio\w*)\b/i.test(question.normalize('NFD').replace(/[\u0300-\u036f]/g,''));
-    const followUp = history.length>0 && /^(e se|e quando|e como|e nesse caso|e nessa situacao|nesse caso|nessa situacao|e ele|e ela|e isso|e dai|e depois|mas e|qual deles|por que|como assim)\b/i.test(question.normalize('NFD').replace(/[\u0300-\u036f]/g,''));
+    const followUp = history.length>0 && /^(e se|e quando|e como|e nesse caso|e nessa situacao|nesse caso|nessa situacao|e ele|e ela|e isso|e dai|e depois|mas e|qual deles|por que|como assim|esta numa|esta em|fica numa|fica em|sim|nao)\b/i.test(question.normalize('NFD').replace(/[\u0300-\u036f]/g,''));
     const lastQuestion=[...history].reverse().find(m=>m.role==='user')?.content||'';
     const retrievalQuestion=followUp?(lastQuestion+' '+question):question;
     const entries = buscarConhecimento(retrievalQuestion);
