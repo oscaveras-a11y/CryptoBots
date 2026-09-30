@@ -2,6 +2,13 @@
 
 O módulo comercial é independente da base de veículos 4X4. Nesta fase, a API está restrita ao proprietário e **não** há widget público, conexão com WhatsApp nem atendimento comercial em produção.
 
+
+## Decisão do responsável — 30/09/2026
+
+**Piloto aprovado:** LF Moda Feminina será a primeira loja piloto da VERIS-AI. A aprovação autoriza preparar e testar o atendimento comercial, **não** autoriza publicação do chatbot, uso de catálogo não confirmado, ativação pública ou contratação de serviços. A configuração de exemplo permanece `enabled:false` até o cadastro de informações aprovadas e testes de segurança.
+
+**Próxima decisão:** chatbot simples, com IA ou ambas as opções.
+
 ## Configuração privada
 
 Copie `knowledge/businesses.example.json` para um arquivo JSON privado fora do repositório e defina `VERIS_BUSINESS_FILE` no `.env`. O exemplo da LF Moda Feminina está **desabilitado**, sem catálogo, preços ou políticas inventadas.
