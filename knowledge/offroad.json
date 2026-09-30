@@ -353,5 +353,13 @@
       "status": "PLANEJADO",
       "note": "Criar bloco próprio posteriormente, validando experiência prática contra documentação técnica específica por motor/sistema."
     }
-  ]
+  ],
+  "review_authorization": {
+    "date": "2026-09-30",
+    "scope": "36 entradas PENDENTE_VALIDACAO",
+    "decision": "APROVACAO_DO_RESPONSAVEL",
+    "technical_verification": "PENDENTE",
+    "publication": "NAO_AUTOMATICA",
+    "note": "A autorização do responsável não substitui verificação técnica, documentação aplicável ou revisão profissional de instruções de risco."
+  }
 }
