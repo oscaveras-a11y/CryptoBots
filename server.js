@@ -149,7 +149,16 @@ const server = http.createServer(async (req,res) => {
     const safety = avaliarEntrada(data.question);
     if (!safety.ok) return json(res,400,{error:'Pergunta bloqueada pela validação de segurança',safety:safety.code});
     const question = safety.text;
-    if (/\b(primeiros? socorros?|socorr\w*|engasg\w*|ferimentos?)\b/i.test(question)) {
+    if (/\b(primeiros? socorros?|socorr\w*|engasg\w*|ferimentos?|hemorragia|reanimacao|parada cardiorrespiratoria|trauma|avc)\b/i.test(question.normalize('NFD').replace(/[\u0300-\u036f]/g,''))) {
+      const aph = require('./knowledge/aph-socorrista-pendentes.json');
+      const normalized = question.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+      const terms = normalized.match(/[a-z]{4,}/g) || [];
+      const topics = aph.entries.filter(e => terms.some(t => e.topic.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(t))).slice(0,2);
+      const refs = topics.flatMap(e => e.source_ids).filter((v,i,a) => a.indexOf(v)===i).map(id => aph.sources.find(s => s.id===id)).filter(Boolean);
+      const overview = topics.length ? topics.map(e => e.topic+': '+e.summary).join('\n\n') : aph.entries.map(e => e.topic).join('; ');
+      return json(res,200,{tier,answer:'Material educativo de APH (não é protocolo operacional aprovado).\n\n'+overview+'\n\nEm emergência no Brasil: SAMU 192 ou Bombeiros 193. Procedimentos dependem de capacitação, protocolo local e regulação médica.',mode:'educational-reference',module:'primeiros-socorros',knowledge:topics.map(e=>({id:e.id,topic:e.topic,status:e.status})),sources:refs.map(s=>({title:s.title,url:s.url})),app_knowledge:[],needs_review:true});
+    }
+    if (false) {
       return json(res,200,{tier,answer:'O módulo de primeiros socorros ainda está em revisão profissional e não está habilitado para fornecer procedimentos. Em uma emergência, acione o serviço de emergência local. No Brasil, SAMU 192 ou Bombeiros 193.',mode:'pending-review',module:'primeiros-socorros',knowledge:[],app_knowledge:[],needs_review:true});
     }
     const rawContext = data.context || {};
