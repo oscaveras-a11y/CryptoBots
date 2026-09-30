@@ -9,7 +9,7 @@ O módulo comercial é independente da base de veículos 4X4. Nesta fase, a API 
 
 **Decisão 2 aprovada:** começar com chatbot simples, determinístico, sem IA nem chamadas ao Groq. Usar somente perguntas e respostas comerciais aprovadas; quando não houver resposta, encaminhar ao atendimento humano. IA permanece opcional para uma fase posterior, sem contratação agora.
 
-**Próxima decisão:** quais informações comerciais a loja autoriza cadastrar e publicar no piloto.
+**Dados iniciais autorizados para preparação:** o responsável pediu reaproveitar as informações da conversa de criação do site. O exemplo inclui oito produtos e seus preços históricos quando informados, os dois itens marcados como vendidos, WhatsApp e Instagram. O catálogo está marcado para revisão porque o responsável está adicionando novos produtos ao site; estoque, tamanhos, entregas e trocas continuam não confirmados. A loja permanece desabilitada no piloto até validação e testes.
 
 ## Configuração privada
 
