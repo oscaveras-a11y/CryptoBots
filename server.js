@@ -109,7 +109,7 @@ const server = http.createServer(async (req,res) => {
     // Bloqueia POSTs de outras origens; requisições do navegador têm Origin.
     if (!origin || new URL(origin).host!==req.headers.host) return json(res,403,{error:'Origem não permitida'});
     if (req.url==='/ui/login') {
-      if (!UI_PASSWORD || UI_PASSWORD.length<12) return json(res,503,{error:'Configure VERIS_UI_PASSWORD com pelo menos 12 caracteres'});
+      if (!UI_PASSWORD || UI_PASSWORD.length<32) return json(res,503,{error:'Configure VERIS_UI_PASSWORD com pelo menos 32 caracteres'});
       if(rateLimited(req,'standard')) return json(res,429,{error:'Tente novamente em um minuto'});
       try {
         const data=await bodyJSON(req);
