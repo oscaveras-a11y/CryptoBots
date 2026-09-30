@@ -7,7 +7,7 @@
     "Não tratar números de referência como limites universais; considerar veículo, fabricante, terreno e configuração.",
     "Quando houver risco ou informação insuficiente, priorizar segurança e reavaliação.",
     "Veículos preparados podem combinar motor, câmbio, transferência e eixos de origens distintas. Identificar a configuração real instalada; não presumir especificações do veículo original nem tratar seu manual como suficiente.",
-    "As entradas 15–50 foram incorporadas como PENDENTE_VALIDACAO: não são disponibilizadas como conhecimento confirmado pelo mecanismo de recuperação até validação técnica."
+    "As entradas 15–50 estão disponíveis somente para testes quando VERIS_ENABLE_TEST_KNOWLEDGE=true; não são respostas tecnicamente validadas e exigem revisão antes de uso público."
   ],
   "entries": [
     {
@@ -91,252 +91,252 @@
     {
       "id": "offroad-015",
       "topic": "Semieixo ou homocinética quebrada",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Estalos em curva, vibração, perda de tração numa roda e graxa espalhada perto da coifa são indícios, mas não confirmam a quebra. Pare e inspecione sem se aproximar de componentes em movimento. Não rode com semieixo solto ou batendo. Remover semieixo e prosseguir no eixo restante só após identificar a montagem do cubo/rolamento, diferencial e transmissão: em alguns conjuntos, a retirada compromete a retenção do rolamento ou a capacidade de transmitir torque. Se não for possível confirmar, recuperar por guincho ou transporte.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-016",
       "topic": "Cardã quebrado",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Pare; cardã pendurado pode atingir assoalho, tanque, freios e outras peças. Não prossiga com o componente solto nem confie em amarração improvisada para dirigir. A retirada e eventual deslocamento usando outro eixo dependem da caixa de transferência, diferenciais, tração selecionável ou integral e adaptações. Identifique a transmissão realmente instalada antes de recomendar 4x2; se desconhecida, transportar ou rebocar adequadamente.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-017",
       "topic": "Diferencial danificado",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Ronco/uivo, pancadas, vibração, cheiro de óleo queimado, vazamentos ou limalha podem indicar falha. Metal moendo, roda travando, vazamento significativo ou vibração forte exigem parada imediata. Mesmo ruído leve pode evoluir para travamento; inspecione e evite seguir se não puder excluir falha grave. A possibilidade de retirar um cardã ou usar outro eixo depende da configuração real.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-018",
       "topic": "Embreagem superaquecida",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Cheiro de material queimado, rotação do motor subindo sem avanço proporcional e pedal alterado sugerem patinação/sobreaquecimento. Pare em local seguro e deixe esfriar; não há tempo universal de 20–30 minutos. Evite segurar o veículo na embreagem e use relações adequadas, inclusive reduzida se instalada. Se persistir patinação ou alteração de acionamento, não force: pode haver dano ao disco, platô ou sistema hidráulico.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-019",
       "topic": "Câmbio automático superaquecido",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Alertas de temperatura, cheiro de queimado, trocas demoradas e patinação sugerem aquecimento ou defeito. Pare em local seguro, tire a carga da transmissão e verifique vazamentos e nível conforme o projeto instalado. Em transmissões cuja bomba de fluido circula com motor em marcha lenta, P ou N pode auxiliar o resfriamento, mas o procedimento depende do câmbio, conversor, bomba e arrefecimento realmente instalados. Não presuma o manual do veículo de origem em jipes preparados. Se persistirem patinação, vazamento, ruído ou alerta, não prossiga; diagnostique e recupere o veículo.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-020",
       "topic": "Correia de acessórios rompida",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Identifique o que a correia aciona no motor instalado: alternador, bomba d'água, direção assistida e/ou ar-condicionado. Se a bomba d'água parar, desligue o motor imediatamente para evitar superaquecimento. Se a refrigeração permanecer funcional, eventual deslocamento muito curto depende de direção, carga elétrica e segurança; a bateria pode descarregar e a direção ficar pesada. Não continue sem saber se a bomba d'água está funcionando.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-021",
       "topic": "Mangueira do radiador rompida",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Pare em segurança, deixe esfriar e nunca abra sistema pressurizado quente. Verifique a extensão do vazamento. Fita de silicone autofusão ou emenda com mangueira e abraçadeiras adequadas podem ser reparos emergenciais somente se resistirem à temperatura e pressão. Complete preferencialmente com água limpa apenas como medida temporária quando compatível, corrigindo depois o fluido. O aquecedor interno só ajuda se ainda houver circulação; não substitui refrigeração. Não prossiga se o vazamento ou a temperatura não estiverem controlados.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-022",
       "topic": "Falha no alternador",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Luz de bateria, faróis fracos, painel instável e queda da tensão podem indicar falta de carga. Cerca de 14 V com motor ligado é referência comum, mas alternadores inteligentes e adaptações variam; tensão isolada não confirma defeito. Desligue cargas não essenciais, preservando iluminação e itens obrigatórios de segurança. A bateria pode manter o motor por tempo limitado; evite desligamentos desnecessários se estiver seguro continuar, mas pare se houver risco de pane ou superaquecimento.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-023",
       "topic": "Cinta de reboque versus cinta cinética",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Cinta de reboque tem pouca elasticidade e é destinada a tração estática/controlada dentro da capacidade nominal; nunca usar em arrancadas bruscas. Cinta cinética é projetada para esticar e transferir energia numa recuperação dinâmica, exigindo capacidade compatível com os dois veículos, pontos de recuperação certificados e técnica apropriada. Nunca prender à bola do engate, suspensão ou pontos não dimensionados. Isolar toda a área e interromper se houver dúvida sobre equipamento ou ancoragem.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-024",
       "topic": "Atolado até o chassi",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Pare antes de cavar mais. Inspecione terreno, inclinação e componentes inferiores; remova lama ou areia que sustenta o chassi e desobstrua rodas e trajeto de saída. Use pás e pranchas/tapetes de tração adequados sem posicionar pessoas na trajetória de objetos que possam ser projetados. Escolha a saída de menor resistência. Antes da recuperação, confirme pontos e capacidade do equipamento, estabeleça comunicação e afaste todos da zona de risco. Guincho e cinta cinética exigem procedimentos distintos; não aumentar a força sem reavaliar.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-025",
       "topic": "Guincho em subida",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Avalie inclinação, solo e risco de deslizamento; alinhe veículo e linha de tração sempre que possível, usando ancoragem e componentes dimensionados para a carga real. Mantenha amplo perímetro de exclusão: ninguém na linha do cabo, entre veículo e ancoragem ou abaixo do carro. Use amortecedor de linha conforme o sistema, sem presumir que jaqueta comum elimine o risco. Operar lentamente, com motorista e operador coordenados; ajuda das rodas somente quando segura. Se perder progresso, interrompa, estabilize o veículo com método apropriado e reavalie antes de reiniciar.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-026",
       "topic": "Guincho sem árvore",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Alternativas incluem outro veículo adequadamente ancorado, âncora terrestre própria e pontos naturais comprovadamente estáveis. Freio de estacionamento, marcha e calços isoladamente não garantem que outro veículo suporte a carga. Pedra, estepe, tronco ou tábua enterrados são ancoragens improvisadas de resistência incerta: profundidade e teste com carga leve não comprovam capacidade total. Avalie solo, direção de tração, pontos de fixação, fator de segurança e possíveis falhas; se não houver ancoragem confiável, não execute o puxão.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-027",
       "topic": "Veículo tombado",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Priorize segurança da cena e atendimento aos ocupantes; não mova feridos com suspeita de lesão de coluna salvo perigo imediato. Desligue motor somente se acessível com segurança, observe combustível, fogo e estabilidade, e impeça novo deslocamento. Destombamento exige pontos estruturais, ancoragem e equipe capacitada; mantenha todos fora da zona de esmagamento. Antes de religar, verifique fluidos, admissão e possível óleo nos cilindros para evitar calço hidráulico; em dúvida, não dê partida.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-028",
       "topic": "Recuperação com dois veículos",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Escolha terreno estável, rota alinhada e pontos de recuperação adequados em ambos os veículos. Combine sinais e estabeleça ampla área de exclusão. Cinta cinética somente com equipamento compatível e operadores experientes; não fazer puxões progressivamente mais violentos sem reavaliar. Roldana/patesca é componente de sistema de guincho, não deve ser adicionada a puxão cinético. Se não houver progresso seguro, cavar, usar pranchas, guincho ou mudar a estratégia.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-029",
       "topic": "Cabo de aço versus corda sintética de guincho",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Inspecione visualmente todo o comprimento antes do uso. No aço, procure fios rompidos, dobras, amassamentos e corrosão; nunca deslize a mão ao longo do cabo, mesmo com luvas. Na corda sintética, procure abrasão, cortes, fibras danificadas e sinais de calor. Use luvas apropriadas ao manusear, siga critérios de descarte do fabricante e mantenha linha e equipamento limpos e secos quando aplicável. Ambos podem causar acidentes graves no rompimento, sobretudo com ferragens; use amortecedor quando recomendado e mantenha ampla zona de exclusão.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-030",
       "topic": "Lama profunda",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Se o veículo progride, mantenha movimento controlado e evite aceleração excessiva. Se rodas começarem a cavar ou o chassi encostar, interrompa a tentativa antes de afundar mais. Se for seguro, recue pelo próprio rastro e reavalie; caso contrário, prepare recuperação com escavação, pranchas ou equipamento dimensionado.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-031",
       "topic": "Areia fofa",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Reduzir pressão pode aumentar a área de contato, mas 15–20 psi é apenas exemplo e depende de peso, pneus, rodas, beadlock, velocidade e risco de destalonamento. Use aceleração progressiva e relação de marcha adequada à configuração, preservando embalo sem patinar excessivamente. Evite parar em aclive quando houver rota segura. Se afundar, pare de acelerar, desobstrua e recupere. Recalibre antes de voltar ao asfalto.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-032",
       "topic": "Pedras soltas em subida",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Inspecione a linha e escolha apoio estável; mantenha velocidade baixa, torque progressivo e controle de direção. Se perder tração, não acelere indefinidamente. Uma descida de ré pode ser necessária, mas deve ser controlada, com transmissão engatada, freio-motor quando disponível e técnica compatível com a transmissão e inclinação. Nunca descer em neutro ou de modo descontrolado; se não houver controle, estabilize e considere guincho.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-033",
       "topic": "Erosões profundas",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Inspecione a pé somente se o terreno for seguro, avaliando profundidade, fundo, erosão das bordas, ângulos de entrada/saída e componentes baixos. Travessia diagonal pode ajudar em certas geometrias, mas também aumentar inclinação lateral e risco de tombamento. Use observador em posição segura e visível; se a passagem não for previsível, escolha outra rota.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-034",
       "topic": "Curvas fechadas em trilhas estreitas",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Faça manobras lentas, em etapas, com observador posicionado em local estável, visível e fora da trajetória, nunca junto à borda instável. Monitore as rodas do lado exposto e evite ré sem visibilidade. Aproximar-se do lado da montanha pode ser preferível quando o terreno permitir, mas não é regra se houver rochas, desmoronamento ou risco de inclinação.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-035",
       "topic": "Condução noturna",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Prepare iluminação principal e auxiliar adequada, lanternas, rádio, navegação e energia reserva. Reduza velocidade e evite obstáculos desconhecidos. Mantenha comunicação no comboio e distância suficiente para frenagem e visibilidade; proximidade excessiva aumenta colisões. Planeje pausas e retorno se cansaço ou visibilidade comprometerem o controle.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-036",
       "topic": "Chuva intensa",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Reavalie continuamente aderência, argila, correnteza, erosões e estabilidade de encostas. Não atravesse curso d'água cheio, barrento ou com correnteza cuja segurança não possa ser estabelecida. Volte antes de perder a rota de saída. Se esperar, escolha terreno alto e estável, longe de leitos de rio e encostas com risco de deslizamento.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-037",
       "topic": "Suspensão elevada (lift)",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Lift de suspensão pode ampliar curso ou espaço para pneus maiores conforme projeto, mas eleva o centro de gravidade, altera ângulos de cardãs e geometria e pode aumentar desgaste e risco de tombamento. Não aumenta por si só a distância do diferencial ao solo; isso depende sobretudo do raio dos pneus. Exige avaliação de alinhamento, freios, direção, componentes e regularização aplicável.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-038",
       "topic": "Pneus MT versus AT",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "MT tende a oferecer autolimpeza e tração em lama profunda, com compromissos de ruído, desgaste e comportamento em piso molhado conforme modelo. AT equilibra uso rodoviário e trilhas leves/moderadas. Desempenho em rocha, areia e chuva depende de composto, desenho, pressão e veículo; não existe vencedor universal.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-039",
       "topic": "Snorkel e travessia de água",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Snorkel bem instalado e vedado eleva a admissão e reduz risco de aspiração de água, mas não impermeabiliza o veículo. Verifique emendas, caixa do filtro, respiros de diferenciais/câmbio, sistemas elétricos e limites de profundidade da configuração preparada. Nunca atravesse água de fundo ou correnteza desconhecidos.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-040",
       "topic": "Protetores inferiores do 4x4",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Priorize proteção de cárter, caixa de transferência, tanque, radiador, direção e diferenciais conforme pontos baixos e exposição do veículo. Avalie fixações, drenagem, acesso à manutenção, peso e possibilidade de a proteção prender em obstáculos.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-041",
       "topic": "Bloqueios dianteiro e traseiro",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Bloqueio traseiro costuma ajudar em muitas situações; dianteiro também melhora tração, mas pode dificultar esterçamento e elevar esforços. A escolha depende de peso, eixos, diferencial, direção, terreno e tipo de bloqueio instalado. Acione selecionáveis antes do obstáculo quando apropriado e desative em piso de alta aderência conforme o sistema.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-042",
       "topic": "Inspeção antes da trilha",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Verifique níveis e vazamentos, arrefecimento, correias e mangueiras, pneus e estepe, freios, direção, suspensão, bateria, iluminação, fixações, pontos de recuperação, macaco e ferramentas. Em veículo preparado, revise também suportes de motor/câmbio, cardãs, adaptação da transferência, respiros, guincho e circuitos elétricos modificados.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-043",
       "topic": "Inspeção após a trilha",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Lave cuidadosamente a parte inferior sem direcionar jato forte a conectores ou rolamentos; inspecione freios, coifas, rolamentos, respiros, filtro de ar, suspensão, fixações e vazamentos. Se houve imersão, verifique contaminação dos fluidos de diferenciais, câmbio, transferência e motor; troque os contaminados e investigue entrada de água. Se houver suspeita de água no motor, não tente dar partida antes da avaliação.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-044",
       "topic": "Isolado na trilha sem sinal",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Em geral, permaneça junto ao veículo se ele estiver em local seguro e alguém souber seu itinerário. Preserve água, bateria, abrigo e meios de sinalização; utilize SOS por satélite se disponível. Buscar sinal em ponto alto só quando o percurso for seguro e sem perder a referência do veículo. Caminhar para sair exige rota confiável, condições favoráveis e avaliação de risco.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-045",
       "topic": "Acidente com feridos na trilha",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Proteja a cena e verifique consciência, respiração e hemorragias graves; acione 192 (SAMU) ou 193 (Bombeiros) quando houver comunicação. Controle sangramento grave com técnica apropriada, mantenha a pessoa aquecida e evite movimentar suspeita de lesão de coluna salvo perigo imediato. Siga instruções do atendimento de emergência; inicie RCP/DEA se indicado e houver treinamento ou orientação do serviço.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-046",
       "topic": "Pane mecânica em local remoto",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Estacione e estabilize em local seguro. Avalie luz do dia, água, combustível, ferramentas, comunicação e gravidade da falha. Faça apenas reparos compatíveis com conhecimento e equipamento disponíveis; não improvise em freios, direção ou componentes críticos. Organize recuperação ou assistência cedo, antes de perder margem de segurança.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-047",
       "topic": "Comboio 4x4",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Defina líder experiente e veículo de apoio no fim, canal de rádio, pontos de encontro e protocolo para perda de contato. Cada condutor confirma a presença do veículo seguinte em bifurcações quando seguro, sem parar em pontos de risco. Ajuste distância, velocidade e intervalos ao terreno e à visibilidade.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-048",
       "topic": "Navegação GPS na trilha",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Use GPS e mapas offline como apoio, não como garantia de passagem. Confira relevo, acesso permitido, propriedade privada, condições do terreno e atualizações locais. Se o trajeto indicar precipício, rio perigoso ou trecho impraticável, pare e replaneje; não siga cegamente o traçado.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-049",
       "topic": "Kit de trilha e recuperação",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Leve equipamento de recuperação compatível e inspecionado (cintas adequadas, manilhas, guincho quando disponível, pá, pranchas), compressor e reparo de pneus, ferramentas, peças e fluidos compatíveis com motor/câmbio adaptados, primeiros socorros, água, alimentos, iluminação, rádio, GPS offline, energia reserva e extintor apropriado. Macaco tipo hi-lift exige treinamento, pontos de apoio corretos e base firme; não é obrigatório para todos.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
     {
       "id": "offroad-050",
       "topic": "Planejamento da trilha",
-      "status": "PENDENTE_VALIDACAO",
+      "status": "TESTE_NAO_VALIDADA",
       "answer": "Planeje trajeto, dificuldade, previsão do tempo e chuvas a montante, combustível e autonomia, preparação dos veículos, experiência dos participantes, autorizações de acesso, rotas de fuga, pontos de encontro e horários. Deixe itinerário e previsão de retorno com alguém fora do grupo e combine protocolo de resgate.",
       "source": "Experiência prática do projeto, editada com ressalvas de segurança; validação técnica externa pendente."
     },
@@ -359,7 +359,7 @@
     "scope": "36 entradas PENDENTE_VALIDACAO",
     "decision": "APROVACAO_DO_RESPONSAVEL",
     "technical_verification": "PENDENTE",
-    "publication": "NAO_AUTOMATICA",
+    "publication": "DISPONIVEL_APENAS_EM_AMBIENTE_DE_TESTE_COM_FLAG",
     "note": "A autorização do responsável não substitui verificação técnica, documentação aplicável ou revisão profissional de instruções de risco."
   }
 }
