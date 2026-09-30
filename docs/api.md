@@ -42,22 +42,22 @@ O serviço responde em `http://127.0.0.1:3100/health`.
 }
 ```
 
-Resposta: `answer`, `mode` (`knowledge`, `model`, `local-calculation`, `educational-reference` ou `unavailable`), `module`, `knowledge` (IDs recuperados) e `needs_review`. `GET /health` também informa `model_configured`, que indica se a chave do provedor foi configurada; não testa a disponibilidade do provedor.
+Resposta: `answer`, `mode` (`knowledge`, `veris-native`, `local-calculation`, `educational-reference` ou `unavailable`), `module`, `knowledge` (IDs recuperados) e `needs_review`. `GET /health` identifica `language_engine: veris-native-v1`; `model_configured` permanece `false` para compatibilidade.
 
-O endpoint `GET /health` não exige autenticação. Sem `MODEL_API_KEY`, a API usa a base local confirmada e resolve expressões aritméticas simples com uma calculadora local segura. Perguntas abertas fora dessas capacidades retornam `mode: unavailable`. A calculadora aceita expressões numéricas com `+`, `-`, `×`/`x`, `÷`/`/`, `%`, `^` e parênteses; não calcula entradas inválidas nem divisão por zero. Com modelo configurado, o modelo recebe a pergunta e os registros recuperados da base 4X4 ou do aplicativo para formular a resposta; sem registros relevantes, responde como assistente geral. Se falhar, a API volta à resposta da base local quando houver uma. A chave permanece no servidor. A pergunta e os campos de contexto usados para formular a resposta são enviados ao provedor configurado; não inclua credenciais, localização exata ou outros dados pessoais sensíveis. A pesquisa externa ainda não foi migrada. O backend do Trilha 4X4 já possui adaptador para `/v1/chat`, mas a integração real entre os dois servidores e o Groq ainda precisa ser validada.
+O endpoint `GET /health` não exige autenticação. O motor VERIS identifica algumas intenções por regras explícitas, consulta a base confirmada de 4X4 e do aplicativo, responde a alguns temas gerais previstos e assume quando não encontrou informação suficiente. A calculadora aceita expressões numéricas com `+`, `-`, `×`/`x`, `÷`/`/`, `%`, `^` e parênteses; não calcula entradas inválidas nem divisão por zero. As perguntas e o contexto permanecem na VERIS; não há chamada para API de IA externa. Este primeiro motor é determinístico e tem capacidades limitadas; não é um modelo neural treinado nem gera respostas livres. A pesquisa externa não está ativa. O backend do Trilha 4X4 já possui adaptador para `/v1/chat`, mas a integração real entre os dois servidores ainda precisa ser validada.
 
 **Segurança:** nunca exponha `VERIS_API_KEY` no JavaScript do navegador ou no aplicativo móvel. O backend do Trilha 4X4 autentica seus usuários e chama a VERIS-AI pelo servidor quando configurado. Para acesso externo, configurar HTTPS, autenticação e proteção adicional de infraestrutura; por padrão o serviço inicia em `127.0.0.1`. Nunca publique a interface sem autenticação.
 
 ## Conectar ao Trilha 4X4 no mesmo computador
 
-No `.env` privado do Trilha 4X4, configure `VERIS_URL=http://127.0.0.1:3100` e `VERIS_API_KEY` com a mesma chave definida no `.env` privado da VERIS-AI. Inicie o Trilha na porta 3000 e a VERIS-AI na porta 3100 em terminais separados. O adaptador do Trilha aguarda até 20 segundos e usa o chat anterior se a VERIS-AI falhar. **A execução conjunta no PC, o Groq real e os testes no celular ainda estão pendentes.**
+No `.env` privado do Trilha 4X4, configure `VERIS_URL=http://127.0.0.1:3100` e `VERIS_API_KEY` com a mesma chave definida no `.env` privado da VERIS-AI. Inicie o Trilha na porta 3000 e a VERIS-AI na porta 3100 em terminais separados. O adaptador do Trilha aguarda até 20 segundos e usa o chat anterior se a VERIS-AI falhar. **A execução conjunta no PC e os testes no celular ainda estão pendentes.**
 
 ## Erros e limites
 
 - `401`: chave da API ausente ou incorreta.
 - `400`: pergunta ou JSON inválido, ou entrada recusada pela segurança; consulte o campo `safety` quando presente.
 - `429`: limite de requisições atingido.
-- `502`: falha ao acessar a VERIS-AI ou o modelo externo.
+- `502`: falha ao acessar a VERIS-AI.
 - Para dúvidas técnicas de veículos, a base confirmada tem prioridade; não trate entradas pendentes como validadas.
 
 
