@@ -7,7 +7,9 @@ O módulo comercial é independente da base de veículos 4X4. Nesta fase, a API 
 
 **Piloto aprovado:** LF Moda Feminina será a primeira loja piloto da VERIS-AI. A aprovação autoriza preparar e testar o atendimento comercial, **não** autoriza publicação do chatbot, uso de catálogo não confirmado, ativação pública ou contratação de serviços. A configuração de exemplo permanece `enabled:false` até o cadastro de informações aprovadas e testes de segurança.
 
-**Próxima decisão:** chatbot simples, com IA ou ambas as opções.
+**Decisão 2 aprovada:** começar com chatbot simples, determinístico, sem IA nem chamadas ao Groq. Usar somente perguntas e respostas comerciais aprovadas; quando não houver resposta, encaminhar ao atendimento humano. IA permanece opcional para uma fase posterior, sem contratação agora.
+
+**Próxima decisão:** quais informações comerciais a loja autoriza cadastrar e publicar no piloto.
 
 ## Configuração privada
 
