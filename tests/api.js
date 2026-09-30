@@ -16,6 +16,7 @@ const { server } = require('../server');
     const healthData=await health.json();
     assert.equal(healthData.ok,true);
     assert.equal(healthData.model_configured,false);
+    assert.equal(healthData.language_engine,'veris-native-v1');
     const unauthorized = await fetch(url+'/v1/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:'atolei na lama'})});
     assert.equal(unauthorized.status,401);
     const headers = {'Content-Type':'application/json','Authorization':'Bearer '+process.env.VERIS_API_KEY};
