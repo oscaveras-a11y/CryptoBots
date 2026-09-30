@@ -195,8 +195,12 @@ const server = http.createServer(async (req,res) => {
       const safe = sanitizarCampo(v,160);
       if (safe && !contemSegredo(safe) && !contemInstrucaoHostil(safe)) context[k] = safe;
     }
-    const appEntries = perguntaSobreApp(question) ? buscarApp(question) : [];
-    const entries = appEntries.length ? [] : buscarConhecimento(question);
+    // Recuperação técnica antes da documentação do aplicativo para questões mecânicas ou de condução.
+    const technicalIntent = /\b(atol\w*|desatol\w*|encalh\w*|guinch\w*|pneu\w*|calibr\w*|embreagem|diferencial|homocinetica|carda|motor|freio\w*)\b/i.test(question.normalize('NFD').replace(/[\u0300-\u036f]/g,''));
+    const entries = buscarConhecimento(question);
+    const appEntries = !technicalIntent && perguntaSobreApp(question) ? buscarApp(question) : [];
+    // Evita que a simples menção a um veículo seja interpretada como dúvida sobre o aplicativo.
+    if (appEntries.length) entries.length = 0;
     // Respostas internas aprovadas têm prioridade sobre o modelo externo.
     // Conhecimento experimental só é recuperado no modo privado de testes.
     const internal = appEntries.length ? appEntries : entries;
