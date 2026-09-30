@@ -210,13 +210,15 @@ const server = http.createServer(async (req,res) => {
     // Respostas internas aprovadas têm prioridade sobre o modelo externo.
     // Conhecimento experimental só é recuperado no modo privado de testes.
     const internal = appEntries.length ? appEntries : entries;
-    const generated = internal.length ? null : await modelReply(question,[],context,[]);
     const generalQuestion = !internal.length;
     const experimental = entries.some(e=>e.status==='TESTE_NAO_VALIDADA');
-    const answer = internal.length
+    // Quando o provedor está configurado, o modelo formula a resposta usando apenas
+    // os registros recuperados. Conteúdo experimental continua fora dessa chamada.
+    const generated = experimental ? null : await modelReply(question,entries,context,appEntries);
+    const answer = generated || (internal.length
       ? (experimental ? '[EM TESTE — RESPOSTA NÃO VALIDADA]\n\n' : '') + internal.map(e=>e.answer).join('\n\n')
-      : generated || 'O modelo externo não está disponível. Consigo responder com a base local 4X4/Trilha 4X4 e fazer cálculos simples; para outros assuntos, configure e verifique o provedor de IA.';
-    return json(res,200,{tier,answer,mode:internal.length?'knowledge':generated?'model':'unavailable',module:appEntries.length?'trilha4x4-app':generalQuestion?'veris-general':'veris-4x4',knowledge:entries.map(e=>({id:e.id,topic:e.topic,status:e.status})),app_knowledge:appEntries.map(e=>({id:e.id,topic:e.topic})),needs_review:experimental||(generalQuestion&&!generated)});
+      : 'O modelo externo não está disponível. Consigo responder com a base local 4X4/Trilha 4X4 e fazer cálculos simples; para outros assuntos, configure e verifique o provedor de IA.');
+    return json(res,200,{tier,answer,mode:generated?'model':internal.length?'knowledge':'unavailable',module:appEntries.length?'trilha4x4-app':generalQuestion?'veris-general':'veris-4x4',knowledge:entries.map(e=>({id:e.id,topic:e.topic,status:e.status})),app_knowledge:appEntries.map(e=>({id:e.id,topic:e.topic})),needs_review:experimental||(generalQuestion&&!generated)});
   } catch (err) { return json(res,err.status || 500,{error:err.status ? err.message : 'Erro interno'}); }
 });
 if (require.main === module) {

@@ -12,5 +12,7 @@ assert.match(html,/Programação/);
 assert.match(html,/model_configured/);
 assert.match(html,/Base local/);
 assert.match(html,/Calculadora local/);
+assert.match(html,/IA \+ base 4X4/);
+assert.match(html,/IA \+ base Trilha 4X4/);
 assert.doesNotMatch(html,/<span class="brand">VERIS 4X4<\/span>/);
 console.log('Abertura geral VERIS-AI e menu de especialidades OK');
