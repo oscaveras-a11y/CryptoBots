@@ -1,6 +1,6 @@
-# API IA-VERIS
+# API VERIS-AI
 
-API independente com o primeiro módulo **VERIS 4X4**. As 49 entradas foram migradas do Trilha 4X4: 13 confirmadas e 36 aguardando revisão. O mecanismo usa somente as confirmadas.
+API independente com o módulo especializado **4X4**. As 49 entradas foram migradas do Trilha 4X4: 13 confirmadas e 36 aguardando revisão. O mecanismo usa somente as confirmadas.
 
 ## Iniciar no Windows (PowerShell)
 
@@ -44,9 +44,21 @@ O serviço responde em `http://127.0.0.1:3100/health`.
 
 Resposta: `answer`, `mode` (`knowledge` ou `model`), `module`, `knowledge` (IDs das fontes confirmadas) e `needs_review`.
 
-O endpoint `GET /health` não exige autenticação. Sem `MODEL_API_KEY`, a API usa apenas a base confirmada. Com modelo configurado, a chave permanece no servidor. A pesquisa externa e a integração com o aplicativo ainda não foram migradas.
+O endpoint `GET /health` não exige autenticação. Sem `MODEL_API_KEY`, a API usa apenas a base confirmada. Com modelo configurado, a chave permanece no servidor. A pesquisa externa ainda não foi migrada. O backend do Trilha 4X4 já possui adaptador para `/v1/chat`, mas a integração real entre os dois servidores e o Groq ainda precisa ser validada.
 
-**Segurança:** nunca exponha `VERIS_API_KEY` no JavaScript do navegador ou no aplicativo móvel. O backend do Trilha 4X4 deverá autenticar seus usuários e chamar a VERIS pelo servidor. Para acesso externo, configurar HTTPS, autenticação e proteção adicional de infraestrutura; o serviço inicia apenas em `127.0.0.1`.
+**Segurança:** nunca exponha `VERIS_API_KEY` no JavaScript do navegador ou no aplicativo móvel. O backend do Trilha 4X4 autentica seus usuários e chama a VERIS-AI pelo servidor quando configurado. Para acesso externo, configurar HTTPS, autenticação e proteção adicional de infraestrutura; por padrão o serviço inicia em `127.0.0.1`. Nunca publique a interface sem autenticação.
+
+## Conectar ao Trilha 4X4 no mesmo computador
+
+No `.env` privado do Trilha 4X4, configure `VERIS_URL=http://127.0.0.1:3100` e `VERIS_API_KEY` com a mesma chave definida no `.env` privado da VERIS-AI. Inicie o Trilha na porta 3000 e a VERIS-AI na porta 3100 em terminais separados. O adaptador do Trilha aguarda até 20 segundos e usa o chat anterior se a VERIS-AI falhar. **A execução conjunta no PC, o Groq real e os testes no celular ainda estão pendentes.**
+
+## Erros e limites
+
+- `401`: chave da API ausente ou incorreta.
+- `400`: pergunta ou JSON inválido, ou entrada recusada pela segurança; consulte o campo `safety` quando presente.
+- `429`: limite de requisições atingido.
+- `502`: falha ao acessar a VERIS-AI ou o modelo externo.
+- Para dúvidas técnicas de veículos, a base confirmada tem prioridade; não trate entradas pendentes como validadas.
 
 ## Testes
 
