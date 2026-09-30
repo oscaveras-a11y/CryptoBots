@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "notes": [
+    "Modelo de configuração, não contém catálogo, preços ou políticas verificadas.",
+    "Copie para arquivo privado e configure VERIS_BUSINESS_FILE; não publique dados privados."
+  ],
+  "businesses": [
+    {
+      "id": "lf-moda-feminina",
+      "name": "LF Moda Feminina",
+      "enabled": false,
+      "fallback_message": "Para confirmar produtos, tamanhos, preços e disponibilidade, entre em contato diretamente com a loja.",
+      "faq": []
+    }
+  ]
+}
