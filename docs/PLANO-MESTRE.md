@@ -1,3 +1,5 @@
+> Documento histórico da primeira fase. A direção atual é a central pessoal de afiliados descrita no README.md. Este conteúdo foi preservado como referência e não define os recursos ativos da versão 2.
+
 # VERIS-AI — Plano mestre de produto e engenharia
 
 **Versão:** 1.0 · **Data-base:** 29/09/2026 · **Estado:** documento vivo  
@@ -268,3 +270,4 @@ Registrar toda decisão relevante com data, responsável, alternativa considerad
 - Criado `docs/CADERNO-REVISAO-4X4.md`: inventário individual dos 49 registros originais (13 confirmados, 36 pendentes) mais uma orientação geral adicional. Nenhuma entrada pendente foi aprovada automaticamente.
 - Implementada API `POST /v1/feedback` com consentimento explícito e motivos enumerados, sem armazenamento de perguntas em texto livre. `GET /v1/feedback` é exclusivo da chave administrativa; não há publicação automática.
 - Pendências da etapa de qualidade: revisão técnica humana dos 36 registros, fontes e versões específicas por entrada, interface de feedback, política de retenção e avaliação em uso real.
+

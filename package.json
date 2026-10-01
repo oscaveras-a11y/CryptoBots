@@ -1,13 +1,14 @@
 {
   "name": "ia-veris",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "API independente VERIS-AI com módulo especializado 4X4",
+  "description": "Central pessoal de afiliados VERIS-AI, campanhas e finan\u00e7as com APIs pagas desativadas",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "start": "node --env-file=.env server.js",
-    "check": "node --check server.js && node --check lib/ai-security.js && node --check lib/app-knowledge.js && node tests/ai-knowledge.js && node tests/knowledge-test-mode.js && node tests/ai-security.js && node --check lib/measurements.js && node tests/measurements.js && node --check lib/feedback.js && node tests/feedback.js && node tests/production.js && node tests/ui-branding.js && node tests/business-knowledge.js && node tests/api.js"
+    "check": "node --check server.js && node --check lib/ai-security.js && node --check lib/app-knowledge.js && node tests/ai-knowledge.js && node tests/knowledge-test-mode.js && node tests/ai-security.js && node --check lib/measurements.js && node tests/measurements.js && node --check lib/feedback.js && node tests/feedback.js && node tests/production.js && node tests/ui-branding.js && node tests/business-knowledge.js && node tests/api.js && node --check lib/store.js && node --check lib/auth.js && node --check lib/providers.js && node --check lib/business.js && node --check public/app.js && node --check public/media.js && node --test tests/business-core.test.js tests/business-api.test.js",
+    "setup": "node scripts/setup.js"
   }
 }

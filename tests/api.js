@@ -7,7 +7,7 @@ const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const feedbackDir=fs.mkdtempSync(path.join(os.tmpdir(),'veris-api-feedback-'));
 process.env.VERIS_FEEDBACK_FILE=path.join(feedbackDir,'feedback.json');
 delete process.env.MODEL_API_KEY;
-const { server } = require('../server');
+const { server } = require('../legacy-server');
 (async () => {
   await new Promise(resolve => server.listen(0,'127.0.0.1',resolve));
   const url = 'http://127.0.0.1:'+server.address().port;
@@ -107,3 +107,4 @@ const { server } = require('../server');
     console.log('API VERIS: health, autenticação, base validada, conhecimento do app, pendências e JSON inválido OK');
   } finally { await new Promise(resolve=>server.close(resolve)); fs.rmSync(feedbackDir,{recursive:true,force:true}); }
 })().catch(err=>{console.error(err);process.exitCode=1;});
+

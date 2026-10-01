@@ -1,76 +1,36 @@
-# API VERIS-AI
+# API VERIS central pessoal (v2)
 
-API independente com o módulo especializado **4X4**. As 49 entradas foram migradas do Trilha 4X4: 13 confirmadas e 36 aguardando revisão. O mecanismo usa somente as confirmadas.
+Endpoints privados requerem sessão de proprietário ou `Authorization: Bearer <VERIS_OWNER_API_KEY>`. A chave de API antiga padrão não concede acesso. Nunca exponha a chave no frontend.
 
-## Iniciar no Windows (PowerShell)
+No navegador, `POST /api/login` recebe `{password}` e exige `Origin` igual ao host. O retorno fornece `csrf`; as alterações subsequentes usam `X-CSRF-Token`, Origin e cookie HttpOnly. `POST /api/logout` encerra a sessão. `/health` e arquivos estáticos públicos não contêm dados pessoais.
 
-Requisitos: Git e Node.js 22 ou superior.
+| Método | Endpoint | Operação |
+|---|---|---|
+| GET | /api/session | Sessão e CSRF |
+| GET | /api/state | Painel completo e estados reais dos provedores |
+| GET | /api/export | Backup JSON privado |
+| POST | /api/products | Cadastro de produto |
+| PATCH / DELETE | /api/products/:id | Editar / excluir sem campanhas vinculadas |
+| POST | /api/import | `{products:[...]}` ou `{csv:"..."}`, até 100 |
+| POST | /api/chat (ou /v1/chat) | `{question,provider?,session_id?,reset_session?}` |
+| POST | /api/campaigns | `{product_id,channel,mode:"template" ou "ai",provider?}` |
+| PATCH | /api/campaigns/:id | Alterar campos do conteúdo e retirar aprovação |
+| POST | /api/campaigns/:id/approve | `{confirmed:true}`, exige link e identificação comercial |
+| GET | /api/campaigns/:id/export | Texto completo da campanha |
+| POST | /api/campaigns/:id/published | `{confirmed:true,publication_url}`, registro manual |
+| POST | /api/contacts | Nome, canal, identificação e consentimento documentado |
+| POST | /api/ledger | Tipo, situação, valor, descrição, data, canal e campanha opcional |
+| PATCH | /api/ledger/:id | Alterar situação financeira |
+| POST | /api/memory | `{text}` |
+| POST | /api/reports | Relatório de dados cadastrados |
+| POST | /api/workflows | Até três campanhas e relatório; `mode` e `provider` opcionais |
+| POST | /api/tasks | Nome, tipo report/campaign_drafts, intervalo 1–720h |
+| PATCH | /api/tasks/:id | `{enabled:boolean}` |
+| POST | /api/tasks/:id/run | Executar agora |
+| DELETE | /api/{contacts,memory,campaigns,tasks,conversations}/:id | Excluir registro |
 
-```powershell
-git clone https://github.com/oscaveras-a11y/IA-VERIS.git
-cd IA-VERIS
-Copy-Item .env.example .env
-```
+Dados monetários são informados em reais no cadastro e salvos em centavos. Produtos armazenam percentuais e preço opcionais. Campos: title, platform, price, commission_percent, affiliate_url, product_url, source_url, observed_at, demand, competition, notes, image_url. `demand` e `competition` são avaliações manuais de 0 a 5. Fontes cadastradas são declaradas pelo proprietário; não são automaticamente verificadas.
 
-Edite o arquivo `.env` e substitua `VERIS_API_KEY` por uma chave aleatória de pelo menos 32 caracteres. Você pode gerar uma com:
+Provedores aceitos: auto, groq, gemini, local. Outros são rejeitados. O modelo Gemini não tem padrão embutido: escolha um modelo elegível no console. Sem chave/cota confirmada, o chat retorna 503; limite local ou cota esgotada retorna 429. Não retorna uma resposta fictícia da IA.
 
-```powershell
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-Não publique nem compartilhe essa chave. Depois:
-
-```powershell
-npm.cmd run check
-npm.cmd start
-```
-
-O serviço responde em `http://127.0.0.1:3100/health`.
-
-## Contrato da API
-
-`POST /v1/chat` com cabeçalho `Authorization: Bearer SUA_CHAVE` e JSON:
-
-```json
-{
-  "question": "Meu jipe está atolado na lama, o que faço?",
-  "context": {
-    "vehicle": "Jipe preparado",
-    "engine": "não informado",
-    "transmission": "não informado"
-  }
-}
-```
-
-Resposta: `answer`, `mode` (`knowledge` ou `model`), `module`, `knowledge` (IDs das fontes confirmadas) e `needs_review`.
-
-O endpoint `GET /health` não exige autenticação. Sem `MODEL_API_KEY`, a API usa apenas a base confirmada. Com modelo configurado, a chave permanece no servidor. A pesquisa externa ainda não foi migrada. O backend do Trilha 4X4 já possui adaptador para `/v1/chat`, mas a integração real entre os dois servidores e o Groq ainda precisa ser validada.
-
-**Segurança:** nunca exponha `VERIS_API_KEY` no JavaScript do navegador ou no aplicativo móvel. O backend do Trilha 4X4 autentica seus usuários e chama a VERIS-AI pelo servidor quando configurado. Para acesso externo, configurar HTTPS, autenticação e proteção adicional de infraestrutura; por padrão o serviço inicia em `127.0.0.1`. Nunca publique a interface sem autenticação.
-
-## Conectar ao Trilha 4X4 no mesmo computador
-
-No `.env` privado do Trilha 4X4, configure `VERIS_URL=http://127.0.0.1:3100` e `VERIS_API_KEY` com a mesma chave definida no `.env` privado da VERIS-AI. Inicie o Trilha na porta 3000 e a VERIS-AI na porta 3100 em terminais separados. O adaptador do Trilha aguarda até 20 segundos e usa o chat anterior se a VERIS-AI falhar. **A execução conjunta no PC, o Groq real e os testes no celular ainda estão pendentes.**
-
-## Erros e limites
-
-- `401`: chave da API ausente ou incorreta.
-- `400`: pergunta ou JSON inválido, ou entrada recusada pela segurança; consulte o campo `safety` quando presente.
-- `429`: limite de requisições atingido.
-- `502`: falha ao acessar a VERIS-AI ou o modelo externo.
-- Para dúvidas técnicas de veículos, a base confirmada tem prioridade; não trate entradas pendentes como validadas.
-
-
-## Feedback de qualidade (consentimento explícito)
-
-`POST /v1/feedback` exige a chave da API e um JSON como `{"knowledge_id":"offroad-001","reason":"incorrect","consent":true}`. Motivos permitidos: `helpful`, `incorrect`, `incomplete`, `unsafe` e `outdated`. O sistema armazena somente o ID da entrada, o motivo e a data; ignora textos livres e não publica correções automaticamente. O registro permanece `PENDING_REVIEW`.
-
-`GET /v1/feedback` exige `VERIS_OWNER_API_KEY` (chave distinta, com pelo menos 32 caracteres), definida somente no `.env` privado. Sem essa chave, não há consulta administrativa. O arquivo local pode ser configurado por `VERIS_FEEDBACK_FILE`; proteja o diretório e defina política de retenção antes de operar publicamente. Ainda não há botão de feedback na interface nem painel de revisão.
-
-## Testes
-
-`npm.cmd run check` executa os testes da base e da API. A automação do GitHub também executa esses testes a cada alteração na branch principal.
-
-## Modo de testes da base 4X4
-
-As 36 respostas autorizadas pelo responsável estão marcadas `TESTE_NAO_VALIDADA`. Para incluí-las nas respostas apenas em ambiente de testes, configure `VERIS_ENABLE_TEST_KNOWLEDGE=true` no `.env` privado e reinicie a VERIS-AI. Sem essa variável, a API recupera somente entradas confirmadas e orientações gerais. A resposta mantém `knowledge[].status` para identificar entradas experimentais. Não exponha este modo ao público antes da revisão técnica.
+Nenhum endpoint envia WhatsApp, publica TikTok, realiza pagamento ou habilita API paga. A referência da primeira versão está em `api-legada.md`; os endpoints legados não estão expostos pelo servidor novo.
