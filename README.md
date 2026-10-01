@@ -17,7 +17,7 @@ Abra http://127.0.0.1:3100 e entre com a senha criada no setup. O setup cria/atu
 
 ## O que funciona
 
-- Login privado com senha derivada por scrypt, sessão HttpOnly e proteção CSRF.
+- Login privado com senha derivada por scrypt, até cinco tentativas de senha por IP por minuto, limite de 120 requisições/minuto por IP nas APIs privadas (incluindo visitantes anônimos), limite de memória contra rotação massiva de IPs, sessão HttpOnly e proteção CSRF.
 - Painel adaptável ao celular; oportunidades, estúdio, contatos, financeiro, rotinas e conexões.
 - Produtos e links de Mercado Livre, Shopee, TikTok, WhatsApp e outros canais, com importação JSON/CSV.
 - Comparação transparente dos dados informados; avisos de dados ausentes e fontes desatualizadas.
@@ -56,9 +56,9 @@ Geração de mídia por IA, vídeo por IA e narração exportável por IA exigem
 
 ## Operação e recuperação
 
-O banco JSON é escrito em arquivo temporário e substituído após fsync. Um arquivo `.lock` evita dois processos usando o mesmo banco. Para recuperar após desligamento inesperado: confirme que nenhuma VERIS está rodando, preserve um backup de `data/business.json` e só então remova `data/business.json.lock`. Não execute múltiplas instâncias apontando para o mesmo arquivo.
+O banco JSON é escrito em arquivo temporário e substituído após fsync. A pasta padrão recebe permissão privada e o arquivo de banco recebe permissão do proprietário; caminhos simbólicos para o banco são recusados. A criação atômica de uma pasta `.lock` evita dois processos usando o mesmo banco. Para recuperar após desligamento inesperado: confirme que nenhuma VERIS está rodando, preserve um backup de `data/business.json` e só então remova a pasta `data/business.json.lock`. Não execute múltiplas instâncias apontando para o mesmo arquivo.
 
-Para acesso remoto, use HTTPS e `NODE_ENV=production` (cookies Secure). A porta deve ficar privada; não publique a interface antiga. As sessões expiram em oito horas e são encerradas ao reiniciar. O banco não é criptografado em disco: mantenha a máquina e os backups privados.
+Para acesso remoto, use um proxy HTTPS confiável que substitui o cabeçalho `X-Forwarded-Proto`, mantenha `NODE_ENV=production` e habilite `VERIS_PUBLIC_TLS_TERMINATED=true`. O servidor recusa bind público sem essa configuração e recusa requisições externas que não cheguem pelo proxy HTTPS local. Cookies ficam Secure e HSTS é enviado em produção. As sessões expiram em oito horas e são encerradas ao reiniciar. O banco não é criptografado em disco: mantenha a máquina e os backups privados.
 
 ## Validação
 
