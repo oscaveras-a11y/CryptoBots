@@ -105,6 +105,15 @@ export class VerisCore {
         return task;
       }
       if (intent === 'question' || intent === 'conversation' || mode === 'informational') {
+        if (intent === 'question' && (routedData.requestedAgent === 'research' || Array.isArray(routedData.sources))) {
+          const research = record('research', await this.#call('research', { instruction: message, data: routedData }, task));
+          task.research = research.status === 'ok' ? research.result : { status: research.status, error: research.error };
+          if (research.status === 'ok' && research.result?.status === 'evidence_collected') {
+            task.status = 'needs_verification';
+            task.answer = 'Fontes coletadas. É necessário verificar as evidências antes de apresentar uma conclusão.';
+            return task;
+          }
+        }
         const mind = record('mind', await this.#call('mind', { message, intent, data: routedData }, task));
         task.answer = mind.status === 'ok' && typeof mind.result?.answer === 'string' ? mind.result.answer :
           intent === 'question' ? baseline.answer : 'Posso conversar e ajudar a esclarecer seu pedido. Nenhuma ação foi executada.';
