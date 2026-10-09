@@ -90,7 +90,8 @@ export class VerisCore {
     const handler = this.#handlers.get(name);
     if (!handler) return { status: 'unavailable', agent: name };
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    // Local speech engines can take longer than conversational agents on CPU.
+    const timer = setTimeout(() => controller.abort(), name === 'voice' ? 120000 : TIMEOUT_MS);
     try {
       const result = await Promise.race([
         Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id, ...(name === 'research' ? { retrieve: this.#researchRetriever } : {}), ...(name === 'vision' && this.#visionAnalyzer ? { analyzeImages: this.#visionAnalyzer } : {}), ...(name === 'voice' && this.#audioTranscriber ? { transcribeAudio: this.#audioTranscriber } : {}), ...(name === 'voice' && this.#speechSynthesizer ? { synthesizeSpeech: this.#speechSynthesizer } : {}) })),
