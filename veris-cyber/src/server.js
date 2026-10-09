@@ -4,6 +4,7 @@ import { auditSource } from './source-audit.js';
 import { analyzeSecurity } from './engine.js';
 import { planTask, reason } from './reasoning.js';
 import { createReasoningSession, addEvidence, nextReasoningStep } from './native-reasoning.js';
+import { orchestrate } from './orchestrator.js';
 
 export function createServer() {
   return http.createServer(async (req, res) => {
@@ -12,6 +13,16 @@ export function createServer() {
       res.end(JSON.stringify(data));
     };
     if (req.method === 'GET' && req.url === '/health') return reply(200, { ok: true, service: 'veris-cyber', mode: 'demo' });
+    if (req.method === 'POST' && req.url === '/api/orchestrate') {
+      let body = '';
+      try {
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 10000) return reply(413, { error: 'payload_too_large' });
+        }
+        return reply(200, orchestrate(JSON.parse(body)));
+      } catch { return reply(400, { error: 'invalid_orchestration_request' }); }
+    }
     if (req.method === 'POST' && req.url === '/api/reasoning') {
       let body = '';
       try {
