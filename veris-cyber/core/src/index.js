@@ -6,7 +6,7 @@ import mindAgent from '../../agents/mind/index.js';
 import plannerAgent from '../../agents/planner/index.js';
 import memoryAgent, { storeExperience, findExperiences } from '../../agents/memory/index.js';
 import researchAgent from '../../agents/research/index.js';
-import { searchWikipedia } from '../../agents/research/wikipedia.js';
+import { searchMultipleSources } from '../../agents/research/multi-source.js';
 import visionAgent from '../../agents/vision/index.js';
 import voiceAgent from '../../agents/voice/index.js';
 import codeAgent from '../../agents/code/index.js';
@@ -28,7 +28,7 @@ export class VerisCore {
   #maxHistory;
   #queue;
   #researchRetriever;
-  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchWikipedia } = {}) {
+  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchMultipleSources } = {}) {
     if (!Number.isInteger(maxHistory) || maxHistory < 1 || maxHistory > 1000) throw new TypeError('invalid_max_history');
     this.#maxHistory = maxHistory;
     this.#queue = new TaskQueue({ concurrency, maxPending });
