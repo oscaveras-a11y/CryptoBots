@@ -10,6 +10,10 @@ export default async function mind({ message = '', intent = 'task', data = {} } 
     return { status: 'conversation', answer: 'Estou ouvindo. Como posso ajudar?', evidence };
   }
   if (intent === 'question') {
+    if (Array.isArray(data?.researchEvidence) && data.researchEvidence.length) {
+      const citations = data.researchEvidence.slice(0, 6).filter(s => typeof s?.url === 'string' && typeof s?.excerpt === 'string').map(s => ({ title: s.title, url: s.url, excerpt: s.excerpt }));
+      return { status: 'evidence_summary', answer: 'Encontrei fontes relacionadas à pergunta. Os trechos abaixo são evidências preliminares, não uma resposta factual confirmada.', citations, verified: false };
+    }
     if (data?.verified === true && typeof data.verifiedAnswer === 'string' && data.verifiedAnswer.trim()) {
       return { status: 'answered', answer: data.verifiedAnswer.trim(), evidence, verified: true };
     }
