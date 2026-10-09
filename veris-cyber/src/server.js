@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { auditSource } from './source-audit.js';
+import { analyzeSecurity } from './engine.js';
 
 export function createServer() {
   return http.createServer(async (req, res) => {
@@ -9,6 +10,18 @@ export function createServer() {
       res.end(JSON.stringify(data));
     };
     if (req.method === 'GET' && req.url === '/health') return reply(200, { ok: true, service: 'veris-cyber', mode: 'demo' });
+    if (req.method === 'POST' && req.url === '/api/engine/analyze') {
+      let body = '';
+      try {
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 250000) return reply(413, { error: 'payload_too_large' });
+        }
+        const input = JSON.parse(body);
+        if (input.authorized !== true) return reply(403, { error: 'authorization_required' });
+        return reply(200, analyzeSecurity(input));
+      } catch { return reply(400, { error: 'invalid_analysis_request' }); }
+    }
     if (req.method === 'POST' && req.url === '/api/source-audit') {
       let body = '';
       try {
