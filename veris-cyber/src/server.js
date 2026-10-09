@@ -6,6 +6,8 @@ import { planTask, reason } from './reasoning.js';
 import { createReasoningSession, addEvidence, nextReasoningStep } from './native-reasoning.js';
 import { orchestrate } from './orchestrator.js';
 import { verisCore } from '../core/src/index.js';
+import { connectAgents } from '../core/src/connect-agents.js';
+connectAgents(verisCore);
 
 export function createServer() {
   return http.createServer(async (req, res) => {
