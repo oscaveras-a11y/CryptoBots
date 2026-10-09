@@ -34,8 +34,8 @@ export function createLocalVoiceAdapters({ whisperBinary, whisperModel, piperBin
       try {
         const file = join(dir, 'input.wav');
         await writeFile(file, bytes);
-        const output = await execute(whisperBinary, ['-m', whisperModel, '-f', file, '-l', 'pt', '-nt'], { signal });
-        const text = output.toString('utf8').replace(/\[[^\]]+\]/g, '').trim();
+        await execute(whisperBinary, ['-m', whisperModel, '-f', file, '-l', 'pt', '-nt', '-otxt', '-of', join(dir, 'transcript')], { signal });
+        const text = (await readFile(join(dir, 'transcript.txt'), 'utf8')).trim();
         if (!text) throw new Error('empty_transcription');
         return { text, language: 'pt-BR' };
       } finally { await rm(dir, { recursive: true, force: true }); }
