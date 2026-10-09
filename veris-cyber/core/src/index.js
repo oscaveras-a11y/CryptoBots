@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { TaskQueue } from './task-queue.js';
 import { orchestrate } from '../../src/orchestrator.js';
 import senseAgent from '../../agents/sense/index.js';
 import mindAgent from '../../agents/mind/index.js';
@@ -24,9 +25,11 @@ export class VerisCore {
   #handlers = new Map();
   #history = new Map();
   #maxHistory;
-  constructor({ handlers = {}, maxHistory = 100 } = {}) {
+  #queue;
+  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50 } = {}) {
     if (!Number.isInteger(maxHistory) || maxHistory < 1 || maxHistory > 1000) throw new TypeError('invalid_max_history');
     this.#maxHistory = maxHistory;
+    this.#queue = new TaskQueue({ concurrency, maxPending });
     this.register('sense', senseAgent);
     this.register('mind', mindAgent);
     this.register('memory', memoryAgent);
@@ -47,7 +50,10 @@ export class VerisCore {
     return this;
   }
   get agents() { return AGENT_NAMES.map(name => ({ name, connected: this.#handlers.has(name) })); }
-  getTask(id) { return this.#history.get(id) ?? null; }
+  getTask(id) { return this.#queue.get(id) ?? this.#history.get(id) ?? null; }
+  get queueStats() { return this.#queue.stats; }
+  submit(request) { return this.#queue.submit(() => this.run(request)); }
+  cancelQueued(id) { return this.#queue.cancel(id); }
   async rememberExperience(experience) { return storeExperience(experience); }
   async recallExperiences(query) { return findExperiences(query); }
   #save(task) {
