@@ -58,6 +58,7 @@ export class VerisCore {
       const sense = record('sense', await this.#call('sense', { message, data }, task));
       const intent = sense.status === 'ok' && sense.result?.intent === 'question' ? 'question' :
         sense.status === 'ok' && sense.result?.intent === 'task' ? 'task' :
+        sense.status === 'ok' && sense.result?.intent === 'conversation' ? 'conversation' :
         baseline.mode === 'question' || baseline.mode === 'memory_fast_path' ? 'question' : 'task';
       const memory = record('memory', await this.#call('memory', { message, intent, data }, task));
       if (intent === 'question' && memory.status === 'ok' && memory.result?.verified === true && typeof memory.result.answer === 'string') {
@@ -70,10 +71,10 @@ export class VerisCore {
         task.status = 'answered';
         return task;
       }
-      if (intent === 'question' || mode === 'informational') {
+      if (intent === 'question' || intent === 'conversation' || mode === 'informational') {
         const mind = record('mind', await this.#call('mind', { message, intent, data }, task));
         task.answer = mind.status === 'ok' && typeof mind.result?.answer === 'string' ? mind.result.answer :
-          intent === 'question' ? baseline.answer : 'Nenhuma ferramenta foi executada no modo informativo.';
+          intent === 'question' ? baseline.answer : 'Posso conversar e ajudar a esclarecer seu pedido. Nenhuma ação foi executada.';
         task.status = 'answered';
         return task;
       }
