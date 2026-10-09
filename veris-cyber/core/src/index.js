@@ -4,6 +4,14 @@ import senseAgent from '../../agents/sense/index.js';
 import mindAgent from '../../agents/mind/index.js';
 import plannerAgent from '../../agents/planner/index.js';
 import memoryAgent, { storeExperience, findExperiences } from '../../agents/memory/index.js';
+import researchAgent from '../../agents/research/index.js';
+import visionAgent from '../../agents/vision/index.js';
+import voiceAgent from '../../agents/voice/index.js';
+import codeAgent from '../../agents/code/index.js';
+import cyberAgent from '../../agents/cyber/index.js';
+import actionAgent from '../../agents/action/index.js';
+import guardAgent from '../../agents/guard/index.js';
+import verifyAgent from '../../agents/verify/index.js';
 
 export const AGENT_NAMES = Object.freeze(['sense','mind','memory','planner','research','vision','voice','code','cyber','action','guard','verify']);
 const MAX_MESSAGE = 4000;
@@ -23,6 +31,14 @@ export class VerisCore {
     this.register('mind', mindAgent);
     this.register('memory', memoryAgent);
     this.register('planner', plannerAgent);
+    this.register('research', researchAgent);
+    this.register('vision', visionAgent);
+    this.register('voice', voiceAgent);
+    this.register('code', codeAgent);
+    this.register('cyber', cyberAgent);
+    this.register('action', actionAgent);
+    this.register('guard', guardAgent);
+    this.register('verify', verifyAgent);
     for (const [name, handler] of Object.entries(handlers)) this.register(name, handler);
   }
   register(name, handler) {
@@ -102,6 +118,7 @@ export class VerisCore {
         task.status = 'needs_planner'; return task;
       }
       const steps = planner.result.steps;
+      if (planner.result.requiresSelection || steps.length === 0) { task.status = 'needs_plan_details'; task.reason = planner.result.reason ?? 'empty_plan'; return task; }
       if (steps.length > 12 || steps.some(s => !s || !AGENT_NAMES.includes(s.agent) || typeof s.instruction !== 'string' || s.instruction.length > 1000)) {
         task.status = 'invalid_plan'; return task;
       }
@@ -112,11 +129,15 @@ export class VerisCore {
         }
         const response = record(step.agent, await this.#call(step.agent, { instruction: step.instruction, scope, data: routedData }, task));
         task.steps.push({ agent: step.agent, ...response });
-        if (response.status !== 'ok') { task.status = 'incomplete'; return task; }
+        if (response.status !== 'ok' || response.result?.status === 'blocked' || response.result?.status?.startsWith('requires_')) { task.status = 'incomplete'; return task; }
       }
       const verification = record('verify', await this.#call('verify', { message, steps: task.steps, scope }, task));
       task.verified = verification.status === 'ok' && verification.result?.verified === true;
       task.status = task.verified ? 'completed' : 'unverified';
+      if (task.verified === true && typeof data.project === 'string' && data.project.trim() && scope.trim()) {
+        try { await this.rememberExperience({ scope, project: data.project, summary: message, outcome: 'success', verified: true, source: 'verify', taskId: task.id }); }
+        catch (error) { task.memoryWarning = errorText(error); }
+      }
       return task;
     } catch (error) {
       task.status = 'error'; task.error = errorText(error); return task;
