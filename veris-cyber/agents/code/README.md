@@ -1,16 +1,21 @@
-# CODE — status e testes com Codex
+# CODE — revisão das cinco etapas
 
-Implementado nesta fase: leitura de arquivos fornecidos explicitamente, validação de caminhos, limites de tamanho, verificações heurísticas com localização, propostas com hash SHA-256 de base, e uma interface de staging que exige aprovação específica por proposta/projeto/branch/arquivos. O agente **não** recebe acesso direto ao disco, terminal ou GitHub. Operações desconhecidas não executam nada.
+Fluxo conectado ao CORE por `core.codeOperation({ operation, project, ... })`. A aplicação hospedeira cria `createCodeService({trustedProjects, generateChanges, verifyApproval, stageChanges, runChecks, createReview})` e injeta `codeService` no construtor `VerisCore`.
 
-## Limitações e itens ainda necessários
+## Estado real
+1. **Leitura e análise:** `project-reader.js` lê um diretório previamente autorizado pelo host, com limite de arquivos e bytes, exclusão de segredos, dependências e links simbólicos. `analyzeProject` executa apenas heurísticas simples.
+2. **Motor de programação:** interface `generateChanges` definida, **nenhum modelo real conectado**. Sem adaptador retorna `requires_code_model_adapter`.
+3. **Autorização:** staging exige identificador da proposta, escopo de arquivos e verificação independente `verifyApproval`. O host deve autenticar o usuário, verificar autorização persistida, expiração, consumo único e permissões; não aceitar apenas o JSON recebido.
+4. **Ambiente isolado e testes:** interfaces `stageChanges` e `runChecks` definidas, **sem sandbox ou executor real**. O host deve fornecer isolamento robusto, proteção contra symlinks, rechecagem de hashes, timeouts e rollback. Nenhum comando arbitrário é executado pelo CODE.
+5. **GitHub e revisão:** interface `createReview` definida, **sem conector de escrita real**. Nenhum merge automático.
 
-- O analisador é heurístico, não substitui ESLint, Semgrep, testes ou auditoria de segurança.
-- Não existe modelo de programação conectado, nem indexação de repositórios grandes.
-- O adaptador `stageChanges` ainda deve ser implementado em workspace isolado, com validação independente da autorização, revisão de hashes, proteção contra symlinks e rollback.
-- Não há executor de comandos/testes isolado nem conector GitHub de escrita no CODE.
-- O CORE ainda não tem um fluxo de aprovação persistente para esse agente. A proteção de execução depende de manter os adaptadores ausentes até isso estar pronto.
-- Os testes automatizados foram adicionados, mas não foram executados nesta sessão.
+## Testes
+`cd veris-cyber && npm test`
 
-## Teste inicial com Codex
+Os arquivos `index.test.js` e `service.test.js` verificam controles e fluxos locais. Testes de integração reais ainda dependem de adaptadores e ambiente instalado. Não considerar as cinco etapas operacionalmente completas até validar as implementações do host.
 
-No Codex, abra a branch `feature/veris-cyber` do repositório `oscaveras-a11y/IA-VERIS`. Rode `cd veris-cyber && npm test` e peça uma revisão de segurança dos arquivos `agents/code/index.js` e `agents/code/index.test.js`. Não autorize escrita na branch principal. Solicite ao Codex que implemente em branch isolada as partes restantes (indexação, analisadores, modelo, workspace isolado, execução controlada de testes, revisão GitHub) com testes E2E e revisão humana antes do merge.
+## Regras permanentes
+- Projeto JARVIS protegido: nunca escrever na versão principal automaticamente.
+- Análise não implica permissão de execução.
+- O CORE deve controlar o serviço; nunca expor os adaptadores diretamente a entrada não confiável.
+- Revisão e merge são decisões humanas.
