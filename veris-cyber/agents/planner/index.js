@@ -1,0 +1,1 @@
+export default ({message='',data={}})=>{const requested=data?.requestedAgent;const allowed=['research','vision','voice','code','cyber','action'];return {steps:allowed.includes(requested)?[{agent:requested,instruction:message.slice(0,1000)}]:[],requiresSelection:!allowed.includes(requested)};};
