@@ -1,0 +1,1 @@
+export default ({steps=[]})=>({verified:steps.length>0&&steps.every(s=>s.result?.verified===true&&s.result?.executed===true),checked:steps.length});
