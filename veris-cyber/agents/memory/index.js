@@ -40,3 +40,24 @@ export default async function memory({ message = '', data = {} } = {}) {
     return { verified: item?.verified === true, answer: item?.verified === true ? item.answer : null, source: item?.source ?? null, savedAt: item?.savedAt ?? null, persistence: 'file' };
   });
 }
+
+export async function storeExperience({ scope, project, summary, outcome = 'unknown', verified = false, source = 'agent', taskId = null } = {}) {
+  if (![scope, project, summary].every(v => typeof v === 'string' && v.trim()) || summary.length > 4000) throw new TypeError('invalid_experience');
+  if (!['success', 'failure', 'unknown'].includes(outcome)) throw new TypeError('invalid_outcome');
+  return serialized(async () => {
+    const records = await load();
+    const key = JSON.stringify(['experience', scope, project, randomUUID()]);
+    records[key] = { summary: summary.trim(), outcome, verified: verified === true, source, taskId, savedAt: new Date().toISOString() };
+    await save(records);
+    return { stored: true, key, verified: verified === true };
+  });
+}
+export async function findExperiences({ scope, project, limit = 10 } = {}) {
+  if (typeof scope !== 'string' || !scope.trim() || typeof project !== 'string' || !project.trim()) throw new TypeError('invalid_experience_query');
+  return serialized(async () => {
+    const records = await load();
+    return Object.entries(records).filter(([key]) => {
+      try { const parts = JSON.parse(key); return parts[0] === 'experience' && parts[1] === scope && parts[2] === project; } catch { return false; }
+    }).slice(-Math.max(1, Math.min(50, limit))).map(([id, value]) => ({ id, ...value }));
+  });
+}
