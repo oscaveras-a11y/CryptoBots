@@ -6,6 +6,7 @@ import mindAgent from '../../agents/mind/index.js';
 import plannerAgent from '../../agents/planner/index.js';
 import memoryAgent, { storeExperience, findExperiences } from '../../agents/memory/index.js';
 import researchAgent from '../../agents/research/index.js';
+import { searchWikipedia } from '../../agents/research/wikipedia.js';
 import visionAgent from '../../agents/vision/index.js';
 import voiceAgent from '../../agents/voice/index.js';
 import codeAgent from '../../agents/code/index.js';
@@ -26,10 +27,13 @@ export class VerisCore {
   #history = new Map();
   #maxHistory;
   #queue;
-  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50 } = {}) {
+  #researchRetriever;
+  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchWikipedia } = {}) {
     if (!Number.isInteger(maxHistory) || maxHistory < 1 || maxHistory > 1000) throw new TypeError('invalid_max_history');
     this.#maxHistory = maxHistory;
     this.#queue = new TaskQueue({ concurrency, maxPending });
+    if (typeof researchRetriever !== 'function') throw new TypeError('invalid_research_retriever');
+    this.#researchRetriever = researchRetriever;
     this.register('sense', senseAgent);
     this.register('mind', mindAgent);
     this.register('memory', memoryAgent);
@@ -68,7 +72,7 @@ export class VerisCore {
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       const result = await Promise.race([
-        Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id })),
+        Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id, ...(name === 'research' ? { retrieve: this.#researchRetriever } : {}) })),
         new Promise((_, reject) => controller.signal.addEventListener('abort', () => reject(new Error('agent_timeout')), { once: true }))
       ]);
       if (result === undefined) throw new Error('empty_agent_response');
