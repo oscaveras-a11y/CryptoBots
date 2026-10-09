@@ -41,3 +41,14 @@ test('untrusted approval object cannot stage changes', async () => {
   assert.equal(result.status, 'approval_required');
   assert.equal(called, false);
 });
+
+
+test('missing verifier cannot be bypassed with an injected staging adapter', async () => {
+  const baseline = analyzeProject(files).files[0].sha256;
+  const proposal = prepareChanges(files, [{path:'src/app.js',content:'const value = 4;',expectedSha256:baseline}]);
+  let staged = false;
+  const approval = {confirmed:true,proposalId:proposal.proposalId,project:'example',branch:'feature/change',paths:['src/app.js']};
+  const result = await applyApprovedProposal(proposal, approval, {stageChanges: async () => {staged = true; return {staged:true};}});
+  assert.equal(result.status, 'requires_trusted_approval_verifier');
+  assert.equal(staged, false);
+});
