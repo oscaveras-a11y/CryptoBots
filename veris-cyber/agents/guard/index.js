@@ -1,0 +1,1 @@
+export default ({authorized=false,scope='',data={}})=>({allowed:authorized===true&&Boolean(scope.trim()),allowExecution:false,reason:'execution_requires_separate_tool_approval'});
