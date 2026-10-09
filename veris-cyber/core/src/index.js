@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { orchestrate } from '../../src/orchestrator.js';
+import memoryAgent, { storeExperience, findExperiences } from '../../agents/memory/index.js';
 
 export const AGENT_NAMES = Object.freeze(['sense','mind','memory','planner','research','vision','voice','code','cyber','action','guard','verify']);
 const MAX_MESSAGE = 4000;
@@ -15,6 +16,7 @@ export class VerisCore {
   constructor({ handlers = {}, maxHistory = 100 } = {}) {
     if (!Number.isInteger(maxHistory) || maxHistory < 1 || maxHistory > 1000) throw new TypeError('invalid_max_history');
     this.#maxHistory = maxHistory;
+    this.register('memory', memoryAgent);
     for (const [name, handler] of Object.entries(handlers)) this.register(name, handler);
   }
   register(name, handler) {
@@ -24,6 +26,8 @@ export class VerisCore {
   }
   get agents() { return AGENT_NAMES.map(name => ({ name, connected: this.#handlers.has(name) })); }
   getTask(id) { return this.#history.get(id) ?? null; }
+  async rememberExperience(experience) { return storeExperience(experience); }
+  async recallExperiences(query) { return findExperiences(query); }
   #save(task) {
     this.#history.set(task.id, task);
     if (this.#history.size > this.#maxHistory) this.#history.delete(this.#history.keys().next().value);
