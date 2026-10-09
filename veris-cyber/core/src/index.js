@@ -113,8 +113,13 @@ export class VerisCore {
           const research = record('research', await this.#call('research', { instruction: message, data: routedData }, task));
           task.research = research.status === 'ok' ? research.result : { status: research.status, error: research.error };
           if (research.status === 'ok' && research.result?.status === 'evidence_collected') {
+            const verification = record('verify', await this.#call('verify', { research: research.result }, task));
+            task.researchReview = verification.status === 'ok' ? verification.result : { status: 'error', error: verification.error };
+            const mind = record('mind', await this.#call('mind', { message, intent: 'question', data: { ...routedData, researchEvidence: research.result.evidence } }, task));
+            task.answer = mind.status === 'ok' ? mind.result?.answer : 'Fontes coletadas; resumo indisponível.';
+            task.citations = mind.status === 'ok' ? mind.result?.citations ?? [] : [];
             task.status = 'needs_verification';
-            task.answer = 'Fontes coletadas. É necessário verificar as evidências antes de apresentar uma conclusão.';
+            task.verified = false;
             return task;
           }
         }
