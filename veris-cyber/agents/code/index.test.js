@@ -20,14 +20,24 @@ test('staging is denied without explicit approval or adapter', async () => {
   const baseline = analyzeProject(files).files[0].sha256;
   const proposal = prepareChanges(files, [{path:'src/app.js',content:'const value = 2;',expectedSha256:baseline}]);
   assert.equal((await applyApprovedProposal(proposal, null)).status, 'approval_required');
-  assert.equal((await applyApprovedProposal(proposal, {confirmed:true,proposalId:proposal.proposalId,project:'example',branch:'feature/change',paths:['src/app.js']})).status, 'requires_isolated_workspace_adapter');
+  assert.equal((await applyApprovedProposal(proposal, {confirmed:true,proposalId:proposal.proposalId,project:'example',branch:'feature/change',paths:['src/app.js']} )).status, 'requires_trusted_approval_verifier');
 });
 test('approved staging delegates to isolated workspace only', async () => {
   const baseline = analyzeProject(files).files[0].sha256;
   const proposal = prepareChanges(files, [{path:'src/app.js',content:'const value = 2;',expectedSha256:baseline}]);
-  const result = await applyApprovedProposal(proposal, {confirmed:true,proposalId:proposal.proposalId,project:'example',branch:'feature/change',paths:['src/app.js']}, {stageChanges:async () => ({staged:true,reviewReference:'review-1'})});
+  const result = await applyApprovedProposal(proposal, {confirmed:true,proposalId:proposal.proposalId,project:'example',branch:'feature/change',paths:['src/app.js']}, {verifyApproval: async () => true, stageChanges:async () => ({staged:true,reviewReference:'review-1'})});
   assert.equal(result.status, 'staged_for_review');
 });
 test('agent refuses unsupported operations', async () => {
   assert.equal((await code({data:{operation:'run-command'}})).executed, false);
+});
+
+test('untrusted approval object cannot stage changes', async () => {
+  const baseline = analyzeProject(files).files[0].sha256;
+  const proposal = prepareChanges(files, [{path:'src/app.js',content:'const value = 3;',expectedSha256:baseline}]);
+  let called = false;
+  const approval = {confirmed:true,proposalId:proposal.proposalId,project:'example',branch:'feature/change',paths:['src/app.js']};
+  const result = await applyApprovedProposal(proposal, approval, {verifyApproval: async () => false, stageChanges: async () => {called = true;return {staged:true};}});
+  assert.equal(result.status, 'approval_required');
+  assert.equal(called, false);
 });
