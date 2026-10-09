@@ -29,7 +29,9 @@ export class VerisCore {
   #queue;
   #researchRetriever;
   #visionAnalyzer;
-  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchMultipleSources, visionAnalyzer = null } = {}) {
+  #audioTranscriber;
+  #speechSynthesizer;
+  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchMultipleSources, visionAnalyzer = null, audioTranscriber = null, speechSynthesizer = null } = {}) {
     if (!Number.isInteger(maxHistory) || maxHistory < 1 || maxHistory > 1000) throw new TypeError('invalid_max_history');
     this.#maxHistory = maxHistory;
     this.#queue = new TaskQueue({ concurrency, maxPending });
@@ -37,6 +39,10 @@ export class VerisCore {
     this.#researchRetriever = researchRetriever;
     if (visionAnalyzer !== null && typeof visionAnalyzer !== 'function') throw new TypeError('invalid_vision_analyzer');
     this.#visionAnalyzer = visionAnalyzer;
+    if (audioTranscriber !== null && typeof audioTranscriber !== 'function') throw new TypeError('invalid_audio_transcriber');
+    if (speechSynthesizer !== null && typeof speechSynthesizer !== 'function') throw new TypeError('invalid_speech_synthesizer');
+    this.#audioTranscriber = audioTranscriber;
+    this.#speechSynthesizer = speechSynthesizer;
     this.register('sense', senseAgent);
     this.register('mind', mindAgent);
     this.register('memory', memoryAgent);
@@ -61,6 +67,18 @@ export class VerisCore {
   get queueStats() { return this.#queue.stats; }
   submit(request) { return this.#queue.submit(() => this.run(request)); }
   cancelQueued(id) { return this.#queue.cancel(id); }
+  async processVoice(data) {
+    const task = { id: randomUUID(), trace: [] };
+    const response = await this.#call('voice', { data }, task);
+    if (response.status !== 'ok') return { status: 'error', error: response.error };
+    if (response.result?.status !== 'transcribed') return response.result;
+    const request = await this.run({ message: response.result.text, mode: 'informational' });
+    return { status: 'processed', transcript: response.result.text, taskId: request.id, answer: request.answer ?? null, taskStatus: request.status };
+  }
+  async speak(text) {
+    const response = await this.#call('voice', { data: { operation: 'synthesize', text } }, { id: randomUUID() });
+    return response.status === 'ok' ? response.result : { status: 'error', error: response.error };
+  }
   async rememberExperience(experience) { return storeExperience(experience); }
   async recallExperiences(query) { return findExperiences(query); }
   #save(task) {
@@ -75,7 +93,7 @@ export class VerisCore {
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       const result = await Promise.race([
-        Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id, ...(name === 'research' ? { retrieve: this.#researchRetriever } : {}), ...(name === 'vision' && this.#visionAnalyzer ? { analyzeImages: this.#visionAnalyzer } : {}) })),
+        Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id, ...(name === 'research' ? { retrieve: this.#researchRetriever } : {}), ...(name === 'vision' && this.#visionAnalyzer ? { analyzeImages: this.#visionAnalyzer } : {}), ...(name === 'voice' && this.#audioTranscriber ? { transcribeAudio: this.#audioTranscriber } : {}), ...(name === 'voice' && this.#speechSynthesizer ? { synthesizeSpeech: this.#speechSynthesizer } : {}) })),
         new Promise((_, reject) => controller.signal.addEventListener('abort', () => reject(new Error('agent_timeout')), { once: true }))
       ]);
       if (result === undefined) throw new Error('empty_agent_response');
