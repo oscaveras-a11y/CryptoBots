@@ -1,0 +1,1 @@
+export default ({data={}})=>({status:'requires_audio_adapter',hasAudio:Boolean(data.audio),verified:false});
