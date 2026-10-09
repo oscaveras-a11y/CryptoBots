@@ -63,7 +63,11 @@ export async function applyApprovedProposal(proposal, approval, adapters = {}) {
   if (proposal?.status !== 'proposal_ready' || !Array.isArray(proposal.changes)) throw new TypeError('invalid_proposal');
   if (!approval || approval.confirmed !== true || approval.proposalId !== proposal.proposalId || typeof approval.project !== 'string' || !approval.project.trim() || approval.branch === 'main' || approval.branch === 'master' || typeof approval.branch !== 'string' || !approval.branch.trim() || !Array.isArray(approval.paths)) return { status: 'approval_required', executed: false };
   if (proposal.changes.some(c => !approval.paths.includes(c.path))) return { status: 'out_of_scope', executed: false };
-  // A user-supplied approval object is not sufficient: CORE must independently verify authorization.\n  if (typeof adapters.verifyApproval !== 'function') return { status: 'requires_trusted_approval_verifier', executed: false };\n  const trusted = await adapters.verifyApproval({ approval, proposalId: proposal.proposalId, paths: proposal.changes.map(c => c.path) });\n  if (trusted !== true) return { status: 'approval_required', executed: false };\n  if (typeof adapters.stageChanges !== 'function') return { status: 'requires_isolated_workspace_adapter', executed: false };
+  // A user-supplied approval object is not sufficient: CORE must independently verify authorization.
+  if (typeof adapters.verifyApproval !== 'function') return { status: 'requires_trusted_approval_verifier', executed: false };
+  const trusted = await adapters.verifyApproval({ approval, proposalId: proposal.proposalId, paths: proposal.changes.map(c => c.path) });
+  if (trusted !== true) return { status: 'approval_required', executed: false };
+  if (typeof adapters.stageChanges !== 'function') return { status: 'requires_isolated_workspace_adapter', executed: false };
   // The adapter must enforce sandboxing, branch protection, baseline SHA checks and atomicity.
   const result = await adapters.stageChanges({ project: approval.project, branch: approval.branch, changes: proposal.changes.map(c => ({...c})) });
   return { status: result?.staged === true ? 'staged_for_review' : 'staging_failed', executed: result?.staged === true, reviewReference: result?.reviewReference ?? null };
