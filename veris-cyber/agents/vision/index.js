@@ -1,0 +1,1 @@
+export default ({data={}})=>({status:'requires_image_adapter',hasImage:Boolean(data.image),verified:false});
