@@ -28,12 +28,15 @@ export class VerisCore {
   #maxHistory;
   #queue;
   #researchRetriever;
-  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchMultipleSources } = {}) {
+  #visionAnalyzer;
+  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchMultipleSources, visionAnalyzer = null } = {}) {
     if (!Number.isInteger(maxHistory) || maxHistory < 1 || maxHistory > 1000) throw new TypeError('invalid_max_history');
     this.#maxHistory = maxHistory;
     this.#queue = new TaskQueue({ concurrency, maxPending });
     if (typeof researchRetriever !== 'function') throw new TypeError('invalid_research_retriever');
     this.#researchRetriever = researchRetriever;
+    if (visionAnalyzer !== null && typeof visionAnalyzer !== 'function') throw new TypeError('invalid_vision_analyzer');
+    this.#visionAnalyzer = visionAnalyzer;
     this.register('sense', senseAgent);
     this.register('mind', mindAgent);
     this.register('memory', memoryAgent);
@@ -72,7 +75,7 @@ export class VerisCore {
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
       const result = await Promise.race([
-        Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id, ...(name === 'research' ? { retrieve: this.#researchRetriever } : {}) })),
+        Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id, ...(name === 'research' ? { retrieve: this.#researchRetriever } : {}), ...(name === 'vision' && this.#visionAnalyzer ? { analyzeImages: this.#visionAnalyzer } : {}) })),
         new Promise((_, reject) => controller.signal.addEventListener('abort', () => reject(new Error('agent_timeout')), { once: true }))
       ]);
       if (result === undefined) throw new Error('empty_agent_response');
