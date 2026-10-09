@@ -1,0 +1,1 @@
+export default ({message=''}) => { const s=message.trim(); return {intent:/\?$|^(o que|quem|qual|quais|como|quando|onde|por que)\b/i.test(s)?'question':'task',text:s,language:'pt-BR'}; };
