@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { orchestrate } from '../../src/orchestrator.js';
+import senseAgent from '../../agents/sense/index.js';
+import mindAgent from '../../agents/mind/index.js';
+import plannerAgent from '../../agents/planner/index.js';
 import memoryAgent, { storeExperience, findExperiences } from '../../agents/memory/index.js';
 
 export const AGENT_NAMES = Object.freeze(['sense','mind','memory','planner','research','vision','voice','code','cyber','action','guard','verify']);
@@ -16,7 +19,10 @@ export class VerisCore {
   constructor({ handlers = {}, maxHistory = 100 } = {}) {
     if (!Number.isInteger(maxHistory) || maxHistory < 1 || maxHistory > 1000) throw new TypeError('invalid_max_history');
     this.#maxHistory = maxHistory;
+    this.register('sense', senseAgent);
+    this.register('mind', mindAgent);
     this.register('memory', memoryAgent);
+    this.register('planner', plannerAgent);
     for (const [name, handler] of Object.entries(handlers)) this.register(name, handler);
   }
   register(name, handler) {
@@ -64,7 +70,8 @@ export class VerisCore {
         sense.status === 'ok' && sense.result?.intent === 'task' ? 'task' :
         sense.status === 'ok' && sense.result?.intent === 'conversation' ? 'conversation' :
         baseline.mode === 'question' || baseline.mode === 'memory_fast_path' ? 'question' : 'task';
-      const memory = record('memory', await this.#call('memory', { message, intent, data }, task));
+      const routedData = { ...data, requestedAgent: data.requestedAgent ?? sense.result?.requestedAgent };
+      const memory = record('memory', await this.#call('memory', { message, intent, data: routedData }, task));
       if (intent === 'question' && memory.status === 'ok' && memory.result?.verified === true && typeof memory.result.answer === 'string') {
         task.answer = memory.result.answer;
         task.status = 'answered';
@@ -76,7 +83,7 @@ export class VerisCore {
         return task;
       }
       if (intent === 'question' || intent === 'conversation' || mode === 'informational') {
-        const mind = record('mind', await this.#call('mind', { message, intent, data }, task));
+        const mind = record('mind', await this.#call('mind', { message, intent, data: routedData }, task));
         task.answer = mind.status === 'ok' && typeof mind.result?.answer === 'string' ? mind.result.answer :
           intent === 'question' ? baseline.answer : 'Posso conversar e ajudar a esclarecer seu pedido. Nenhuma ação foi executada.';
         task.status = 'answered';
@@ -86,11 +93,11 @@ export class VerisCore {
       if (authorized !== true || !scope.trim()) {
         task.status = 'blocked'; task.reason = 'explicit_scope_and_authorization_required'; return task;
       }
-      const guard = record('guard', await this.#call('guard', { message, scope, authorized, data }, task));
+      const guard = record('guard', await this.#call('guard', { message, scope, authorized, data: routedData }, task));
       if (guard.status !== 'ok' || guard.result?.allowed !== true) {
         task.status = 'blocked'; task.reason = 'guard_approval_required'; return task;
       }
-      const planner = record('planner', await this.#call('planner', { message, scope, data }, task));
+      const planner = record('planner', await this.#call('planner', { message, scope, data: routedData }, task));
       if (planner.status !== 'ok' || !Array.isArray(planner.result?.steps)) {
         task.status = 'needs_planner'; return task;
       }
@@ -103,7 +110,7 @@ export class VerisCore {
         if (ACTION_AGENTS.has(step.agent) && guard.result?.allowExecution !== true) {
           task.status = 'approval_required'; task.reason = 'execution_not_approved'; return task;
         }
-        const response = record(step.agent, await this.#call(step.agent, { instruction: step.instruction, scope, data }, task));
+        const response = record(step.agent, await this.#call(step.agent, { instruction: step.instruction, scope, data: routedData }, task));
         task.steps.push({ agent: step.agent, ...response });
         if (response.status !== 'ok') { task.status = 'incomplete'; return task; }
       }
