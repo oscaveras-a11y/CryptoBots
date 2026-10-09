@@ -1,0 +1,1 @@
+export default ({instruction=''})=>({status:'requires_source',query:instruction,sources:[],verified:false});
