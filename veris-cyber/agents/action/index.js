@@ -1,0 +1,1 @@
+export default ({instruction=''})=>({status:'requires_tool_adapter',instruction,executed:false});
