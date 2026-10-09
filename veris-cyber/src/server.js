@@ -5,6 +5,7 @@ import { analyzeSecurity } from './engine.js';
 import { planTask, reason } from './reasoning.js';
 import { createReasoningSession, addEvidence, nextReasoningStep } from './native-reasoning.js';
 import { orchestrate } from './orchestrator.js';
+import { verisCore } from '../core/src/index.js';
 
 export function createServer() {
   return http.createServer(async (req, res) => {
@@ -13,6 +14,18 @@ export function createServer() {
       res.end(JSON.stringify(data));
     };
     if (req.method === 'GET' && req.url === '/health') return reply(200, { ok: true, service: 'veris-cyber', mode: 'demo' });
+    if (req.method === 'GET' && req.url === '/api/core/agents') return reply(200, { agents: verisCore.agents });
+    if (req.method === 'POST' && req.url === '/api/core/run') {
+      let body = '';
+      try {
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 20000) return reply(413, { error: 'payload_too_large' });
+        }
+        const result = await verisCore.run(JSON.parse(body));
+        return reply(200, result);
+      } catch { return reply(400, { error: 'invalid_core_request' }); }
+    }
     if (req.method === 'POST' && req.url === '/api/orchestrate') {
       let body = '';
       try {
