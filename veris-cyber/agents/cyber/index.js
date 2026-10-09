@@ -1,0 +1,1 @@
+export default ({instruction='',scope=''})=>({status:'requires_scanner',instruction,scope,findings:[],executed:false});
