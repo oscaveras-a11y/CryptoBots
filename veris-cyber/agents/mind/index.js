@@ -1,0 +1,1 @@
+export default ({message='',intent=''}) => ({answer:intent==='question'?'Ainda não tenho evidências suficientes para responder com segurança.':'Posso organizar a tarefa, mas preciso de ferramentas e evidências verificáveis.',hypotheses:[],confidence:0});
