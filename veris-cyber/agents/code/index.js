@@ -1,0 +1,1 @@
+export default ({instruction=''})=>({status:'proposal_only',instruction,changes:[],executed:false});
