@@ -2,6 +2,7 @@ import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { auditSource } from './source-audit.js';
 import { analyzeSecurity } from './engine.js';
+import { planTask, reason } from './reasoning.js';
 
 export function createServer() {
   return http.createServer(async (req, res) => {
@@ -10,6 +11,18 @@ export function createServer() {
       res.end(JSON.stringify(data));
     };
     if (req.method === 'GET' && req.url === '/health') return reply(200, { ok: true, service: 'veris-cyber', mode: 'demo' });
+    if (req.method === 'POST' && (req.url === '/api/assistant/chat' || req.url === '/api/assistant/plan')) {
+      let body = '';
+      try {
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 20000) return reply(413, { error: 'payload_too_large' });
+        }
+        const input = JSON.parse(body);
+        if (req.url === '/api/assistant/plan') return reply(200, planTask(input.message));
+        return reply(200, await reason({ message: input.message, context: input.context }));
+      } catch { return reply(400, { error: 'invalid_assistant_request' }); }
+    }
     if (req.method === 'POST' && req.url === '/api/engine/analyze') {
       let body = '';
       try {
