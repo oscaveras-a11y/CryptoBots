@@ -31,7 +31,8 @@ export class VerisCore {
   #visionAnalyzer;
   #audioTranscriber;
   #speechSynthesizer;
-  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchMultipleSources, visionAnalyzer = null, audioTranscriber = null, speechSynthesizer = null } = {}) {
+  #codeService;
+  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchMultipleSources, visionAnalyzer = null, audioTranscriber = null, speechSynthesizer = null, codeService = null } = {}) {
     if (!Number.isInteger(maxHistory) || maxHistory < 1 || maxHistory > 1000) throw new TypeError('invalid_max_history');
     this.#maxHistory = maxHistory;
     this.#queue = new TaskQueue({ concurrency, maxPending });
@@ -43,6 +44,8 @@ export class VerisCore {
     if (speechSynthesizer !== null && typeof speechSynthesizer !== 'function') throw new TypeError('invalid_speech_synthesizer');
     this.#audioTranscriber = audioTranscriber;
     this.#speechSynthesizer = speechSynthesizer;
+    if (codeService !== null && (typeof codeService !== 'object' || typeof codeService.inspect !== 'function')) throw new TypeError('invalid_code_service');
+    this.#codeService = codeService;
     this.register('sense', senseAgent);
     this.register('mind', mindAgent);
     this.register('memory', memoryAgent);
@@ -78,6 +81,16 @@ export class VerisCore {
   async speak(text) {
     const response = await this.#call('voice', { data: { operation: 'synthesize', text } }, { id: randomUUID() });
     return response.status === 'ok' ? response.result : { status: 'error', error: response.error };
+  }
+  // CODE access goes through CORE; host-owned adapters enforce project allowlists and approvals.
+  async codeOperation({ operation, project, instruction, proposal, approval, reviewReference } = {}) {
+    if (!this.#codeService) return { status: 'requires_code_service', executed: false };
+    if (operation === 'inspect') return this.#codeService.inspect(project);
+    if (operation === 'propose') return this.#codeService.propose(project, instruction);
+    if (operation === 'stage') return this.#codeService.stage(project, proposal, approval);
+    if (operation === 'test') return this.#codeService.test(project, reviewReference, approval);
+    if (operation === 'review') return this.#codeService.review(project, reviewReference, approval);
+    return { status: 'unsupported_code_operation', executed: false };
   }
   async rememberExperience(experience) { return storeExperience(experience); }
   async recallExperiences(query) { return findExperiences(query); }
