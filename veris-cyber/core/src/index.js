@@ -94,7 +94,7 @@ export class VerisCore {
         ...(name==='mind'?{modelReady:!!this.#mindResponder}:{}),
         ...(name==='voice'?{transcriptionReady:!!this.#audioTranscriber,speechReady:!!this.#speechSynthesizer}:{}),
         state:!registered?'not_registered':!available[name]?'requires_adapter':missingDependencies.length?'partial':'local_capability',
-        missingDependencies,fullyOperational:registered&&available[name]&&missingDependencies.length===0};
+        missingDependencies};
     });
   }
   submitAgent(name,input){if(!AGENT_NAMES.includes(name))throw new TypeError('unknown_agent');return this.#queue.submit(()=>this.invokeAgent(name,input));}
