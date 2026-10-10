@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { TaskQueue } from './task-queue.js';
+import { validatePlan, planWaves } from '../../agents/planner/index.js';
 import { orchestrate } from '../../src/orchestrator.js';
 import senseAgent from '../../agents/sense/index.js';
 import mindAgent from '../../agents/mind/index.js';
@@ -241,11 +242,16 @@ export class VerisCore {
       }
       const steps = planner.result.steps;
       if (planner.result.requiresSelection || steps.length === 0) { task.status = 'needs_plan_details'; task.reason = planner.result.reason ?? 'empty_plan'; return task; }
-      if (steps.length > 12 || steps.some(s => !s || !AGENT_NAMES.includes(s.agent) || typeof s.instruction !== 'string' || s.instruction.length > 1000)) {
-        task.status = 'invalid_plan'; return task;
-      }
+      let waves, validatedSteps;
+      try {
+        validatedSteps = validatePlan(steps);
+        waves = planWaves(validatedSteps, 3);
+      } catch (error) { task.status = 'invalid_plan'; task.reason = errorText(error); return task; }
+      // Execution-capable agents remain sequential, with existing early-return review gates.
+      // Parallel waves are currently planning metadata only, never implicit execution approval.
+      task.plan = { steps: validatedSteps, waves };
       task.steps = [];
-      for (const step of steps) {
+      for (const step of validatedSteps) {
         if (ACTION_AGENTS.has(step.agent) && guard.result?.allowExecution !== true) {
           task.status = 'approval_required'; task.reason = 'execution_not_approved'; return task;
         }
