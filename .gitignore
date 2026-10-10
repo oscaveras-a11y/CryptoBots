@@ -11,3 +11,5 @@ data/
 /veris-cyber/config/projects.json
 /veris-cyber/config/code-authority.json*
 /veris-cyber/workspaces/
+
+veris-cyber/config/local-model.json

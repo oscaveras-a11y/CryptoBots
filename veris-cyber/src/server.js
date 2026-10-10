@@ -12,6 +12,7 @@ import { orchestrate } from './orchestrator.js';
 import { VerisCore } from '../core/src/index.js';
 import { connectAgents } from '../core/src/connect-agents.js';
 import { createLocalCodeService } from '../agents/code/local-service.js';
+import { loadLocalModelConfig } from './local-runtime.js';
 import { createLocalModel } from './local-model.js';
 import { createTorFetch } from './tor-fetch.js';
 import { searchMultipleSources } from '../agents/research/multi-source.js';
@@ -187,7 +188,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     const token = process.env.CYBER_API_TOKEN || readFileSync(new URL('../config/api-token', import.meta.url), 'utf8').trim();
     const config=fileURLToPath(new URL('../config/projects.json',import.meta.url));
     const codeConfig=existsSync(config)?{config,authorityFile:fileURLToPath(new URL('../config/code-authority.json',import.meta.url)),workspaceStorage:fileURLToPath(new URL('../workspaces/',import.meta.url))}:null;
-    const languageModel=process.env.JARVIS_LOCAL_MODEL_ENDPOINT ? {endpoint:process.env.JARVIS_LOCAL_MODEL_ENDPOINT,model:process.env.JARVIS_LOCAL_MODEL_NAME||'jarvis-local'} : null;
+    const modelConfig=fileURLToPath(new URL('../config/local-model.json',import.meta.url));
+    const languageModel=loadLocalModelConfig({file:modelConfig,credentialFile:fileURLToPath(new URL('../config/api-token',import.meta.url))});
     createServer({token,codeConfig,languageModel,networkMode:process.env.JARVIS_NETWORK_MODE||'tor'}).listen(port, '127.0.0.1', () => console.log('VERIS CYBER local API listening on 127.0.0.1:' + port));
   } catch {
     console.error('Verifique o acesso (npm run setup) e a configuração local de projetos antes de iniciar.');

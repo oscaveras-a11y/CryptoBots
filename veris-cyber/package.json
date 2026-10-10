@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "test": "node --test",
     "setup": "node scripts/setup.js",
-    "code-access": "node scripts/code-access.js"
+    "code-access": "node scripts/code-access.js",
+    "model:start": "node scripts/start-local-model.js"
   },
   "engines": {
     "node": ">=20"

@@ -18,3 +18,8 @@ test('offline server never falls back to a remote provider',async t=>{
   const privacy=await(await fetch(base+'/api/privacy',{headers:{Authorization:'Bearer '+token}})).json();assert.equal(privacy.networkMode,'offline');
   const reply=await(await fetch(base+'/api/assistant/chat',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({message:'Olá',networkMode:'online'})})).json();assert.equal(reply.status,'local_model_not_configured');
 });
+test('local model includes host-supplied credential without returning it',async()=>{
+ const key='f'.repeat(64);let authorization;
+ const respond=module.createLocalModel({endpoint:'http://127.0.0.1:3210/v1/chat/completions',apiKey:key,fetchImpl:async(_,options)=>{authorization=options.headers.Authorization;return {ok:true,text:async()=>JSON.stringify({choices:[{message:{content:'Olá'}}]})};}});
+ const result=await respond({message:'Olá'});assert.equal(authorization,'Bearer '+key);assert.ok(!JSON.stringify(result).includes(key));
+});
