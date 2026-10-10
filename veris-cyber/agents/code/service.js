@@ -3,6 +3,7 @@
 import { analyzeProject, prepareChanges, applyApprovedProposal } from './index.js';
 import { readProject } from './project-reader.js';
 import { createNativeCodeEngine } from './native-engine.js';
+import { auditSource } from './security.js';
 export function createCodeService({ trustedProjects = {}, generateChanges = createNativeCodeEngine(), verifyApproval = null, stageChanges = null, runChecks = null, createReview = null } = {}) {
   const projects = new Map(Object.entries(trustedProjects));
   const select = name => {
@@ -13,6 +14,10 @@ export function createCodeService({ trustedProjects = {}, generateChanges = crea
     async inspect(project) {
       const { files, truncated, totalBytes } = await readProject(select(project));
       return { ...analyzeProject(files), project, truncated, totalBytes };
+    },
+    async securityAudit(project) {
+      const { files, truncated } = await readProject(select(project));
+      return { ...auditSource(files), project, truncated };
     },
     async propose(project, instruction, options = {}) {
       if (typeof generateChanges !== 'function') return { status: 'requires_code_model_adapter', executed: false };
