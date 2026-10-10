@@ -25,7 +25,7 @@ test('service is read-only without host adapters', async t => {
   const svc = createCodeService({ trustedProjects: {demo:root} });
   const scan = await svc.inspect('demo');
   assert.equal(scan.findings[0].code, 'unfinished_work');
-  assert.equal((await svc.propose('demo','fix')).status, 'requires_code_model_adapter');
+  await assert.rejects(() => svc.propose('demo','fix'), /native_engine_operation_not_supported/);
   assert.equal((await svc.test('demo','review-1',{project:'demo',operation:'test',reviewReference:'review-1'})).status, 'requires_trusted_test_adapter');
   assert.equal((await svc.review('demo','review-1',{project:'demo',operation:'review',reviewReference:'review-1'})).status, 'requires_github_review_adapter');
   await assert.rejects(() => svc.inspect('other'), /project_not_registered/);
