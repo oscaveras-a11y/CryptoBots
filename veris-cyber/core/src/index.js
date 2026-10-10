@@ -251,12 +251,36 @@ export class VerisCore {
       // Parallel waves are currently planning metadata only, never implicit execution approval.
       task.plan = { steps: validatedSteps, waves };
       task.steps = [];
-      for (const step of validatedSteps) {
+      // Execute independent read-only research/vision steps concurrently within each wave.
+      // Side-effecting agents retain the original sequential approval/review path.
+      const completed = new Map();
+      for (const wave of waves) {
+        const batch = wave.map(id => validatedSteps.find(step => step.id === id));
+        const independent = batch.every(step => ['research', 'vision'].includes(step.agent));
+        if (independent) {
+          const responses = await Promise.all(batch.map(step => this.#call(step.agent, {
+            instruction: step.instruction, scope,
+            data: { ...routedData, dependencies: Object.fromEntries(step.dependsOn.map(id => [id, completed.get(id)?.result ?? null])) }
+          }, task)));
+          for (let i = 0; i < batch.length; i++) {
+            const step = batch[i], response = record(step.agent, responses[i]);
+            const outcome = { id: step.id, agent: step.agent, ...response };
+            task.steps.push(outcome);
+            completed.set(step.id, outcome);
+            if (response.status !== 'ok' || response.result?.status === 'blocked' || response.result?.status?.startsWith('requires_')) {
+              task.status = 'incomplete'; task.reason = 'dependency_step_failed'; return task;
+            }
+          }
+          continue;
+        }
+        for (const step of batch) {
         if (ACTION_AGENTS.has(step.agent) && guard.result?.allowExecution !== true) {
           task.status = 'approval_required'; task.reason = 'execution_not_approved'; return task;
         }
-        const response = record(step.agent, await this.#call(step.agent, { instruction: step.instruction, scope, data: routedData }, task));
-        task.steps.push({ agent: step.agent, ...response });
+        const response = record(step.agent, await this.#call(step.agent, { instruction: step.instruction, scope, data: { ...routedData, dependencies: Object.fromEntries(step.dependsOn.map(id => [id, completed.get(id)?.result ?? null])) } }, task));
+        const outcome = { id: step.id, agent: step.agent, ...response };
+        task.steps.push(outcome);
+        completed.set(step.id, outcome);
         if(step.agent==='action' && response.status==='ok'){
           const result=response.result;task.action=result;task.executed=result.executed===true;task.verified=result.verified===true&&task.executed;
           task.status=task.verified?'completed':result.status==='blocked'?'blocked':'unverified';
@@ -272,6 +296,8 @@ export class VerisCore {
           task.code=result;task.status=result.status;return task;
         }
         if (response.status !== 'ok' || response.result?.status === 'blocked' || response.result?.status?.startsWith('requires_')) { task.status = 'incomplete'; return task; }
+      }
+        }
       }
       const verification = record('verify', await this.#call('verify', { message, steps: task.steps, scope }, task));
       task.verified = verification.status === 'ok' && verification.result?.verified === true;
