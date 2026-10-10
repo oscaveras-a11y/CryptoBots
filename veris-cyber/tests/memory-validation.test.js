@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {join,fileURLToPath} from 'node:path';
 import {spawnSync} from 'node:child_process';
 
 test('memory rejects invalid scopes, source and query limits',async t=>{
@@ -24,6 +24,6 @@ test('memory rejects invalid scopes, source and query limits',async t=>{
    await storeExperience({scope:'x',project:'p',summary:'test',verified:true});
    assert.equal((await findExperiences({scope:'x',project:'p',limit:1})).length,1);
  `;
- const result=spawnSync(process.execPath,['--input-type=module','-e',script],{cwd:new URL('..',import.meta.url),env:{...process.env,VERIS_MEMORY_PATH:join(dir,'memory.json')},encoding:'utf8'});
+ const result=spawnSync(process.execPath,['--input-type=module','-e',script],{cwd:fileURLToPath(new URL('..',import.meta.url)),env:{...process.env,VERIS_MEMORY_PATH:join(dir,'memory.json')},encoding:'utf8'});
  assert.equal(result.status,0,result.stderr);
 });
