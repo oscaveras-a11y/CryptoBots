@@ -264,6 +264,32 @@ export class VerisCore {
         task.recovery.push({ stepId: step.id, agent: step.agent, strategy: 'retry_once_read_only', recovered: second.status === 'ok' });
         return { ...second, attempts: 2, durationMs: (first.durationMs ?? 0) + (second.durationMs ?? 0) };
       };
+      // Strategic replanning produces a reviewed alternative, never silently
+      // changes an approved execution plan or repeats side effects.
+      const proposeAlternative = async (failedStep, response) => {
+        if (!['research', 'vision'].includes(failedStep.agent)) return false;
+        const suggestion = record('planner', await this.#call('planner', {
+          message, scope,
+          data: {
+            ...routedData,
+            planningMode: 'recovery',
+            failedStep: { id: failedStep.id, agent: failedStep.agent, status: response.status, reason: response.error ?? response.result?.status ?? 'unknown' },
+            completedSteps: task.steps.map(s => ({ id: s.id, agent: s.agent, status: s.status })),
+            // A replacement must be explicitly selected and approved on a later run.
+            planSteps: undefined
+          }
+        }, task));
+        if (suggestion.status !== 'ok' || !Array.isArray(suggestion.result?.steps) || !suggestion.result.steps.length) return false;
+        try {
+          const alternative = validatePlan(suggestion.result.steps);
+          task.replan = { status: 'awaiting_review', reason: 'read_only_step_failed', failedStepId: failedStep.id,
+            steps: alternative, waves: planWaves(alternative, 3), automaticExecution: false };
+          task.status = 'replan_proposed';
+          task.executed = false;
+          task.verified = false;
+          return true;
+        } catch { return false; }
+      };
       // Execute independent read-only research/vision steps concurrently within each wave.
       // Side-effecting agents retain the original sequential approval/review path.
       const completed = new Map();
@@ -278,6 +304,7 @@ export class VerisCore {
             task.steps.push(outcome);
             completed.set(step.id, outcome);
             if (response.status !== 'ok' || response.result?.status === 'blocked' || response.result?.status?.startsWith('requires_')) {
+              if (await proposeAlternative(step, response)) return task;
               task.status = 'incomplete'; task.reason = 'dependency_step_failed'; return task;
             }
           }
@@ -305,7 +332,10 @@ export class VerisCore {
           if(['approval_required','task_permission_required','path_out_of_scope','proposal_not_available'].includes(result.status)){task.status='blocked';task.reason=result.status;return task;}
           task.code=result;task.status=result.status;return task;
         }
-        if (response.status !== 'ok' || response.result?.status === 'blocked' || response.result?.status?.startsWith('requires_')) { task.status = 'incomplete'; return task; }
+        if (response.status !== 'ok' || response.result?.status === 'blocked' || response.result?.status?.startsWith('requires_')) {
+          if (await proposeAlternative(step, response)) return task;
+          task.status = 'incomplete'; return task;
+        }
         }
       }
       const verification = record('verify', await this.#call('verify', { message, steps: task.steps, scope }, task));
