@@ -81,7 +81,7 @@ export default async function code({ instruction = '', data = {} } = {}, context
   if (context.signal?.aborted) throw new Error('code_aborted');
   if(typeof context.codeOperation==='function' && typeof data.project==='string')return context.codeOperation({...data,instruction});
   const operation = data.operation ?? 'inspect';
-  if (operation === 'develop') return developCode({...data,instruction:data.topic ?? instruction},{generateChanges:context.generateChanges,prepareChanges});
+  if (operation === 'develop') return developCode({...data,instruction:data.topic ?? instruction},{generateChanges:context.generateChanges,prepareChanges,runChecks:context.runChecks});
   if (operation === 'engineering') return engineeringBrief({instruction:data.topic ?? instruction,files:data.files ?? [],diagnostics:data.diagnostics ?? [],limit:data.limit ?? 5});
   if (operation === 'knowledge') return getCodeKnowledge({topic:data.topic ?? instruction,limit:data.limit ?? 5});
   if (operation === 'architecture') return mapArchitecture(data.files);
