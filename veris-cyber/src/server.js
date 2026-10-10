@@ -30,7 +30,7 @@ export function createServer({ token = process.env.CYBER_API_TOKEN, codeConfig =
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
       res.end(JSON.stringify(data));
     };
-    const assets = {'/':['index.html','text/html; charset=utf-8'],'/dashboard.js':['dashboard.js','text/javascript; charset=utf-8'],'/dashboard.css':['dashboard.css','text/css; charset=utf-8']};
+    const assets = {'/':['jarvis.html','text/html; charset=utf-8'],'/legacy':['index.html','text/html; charset=utf-8'],'/jarvis.js':['jarvis.js','text/javascript; charset=utf-8'],'/jarvis.css':['jarvis.css','text/css; charset=utf-8'],'/dashboard.js':['dashboard.js','text/javascript; charset=utf-8'],'/dashboard.css':['dashboard.css','text/css; charset=utf-8']};
     if(req.method==='GET' && Object.hasOwn(assets,req.url)){
       const [file,type]=assets[req.url];
       res.writeHead(200,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"});
