@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import code from '../agents/code/index.js';
-test('cycle refuses missing generator',async()=>{
+test('cycle requires runner without execution permission',async()=>{
  const r=await code({data:{operation:'cycle'}});
- assert.equal(r.status,'requires_code_generator');
+ assert.equal(r.status,'requires_isolated_test_runner');
 });
 test('cycle retries failing checks and requires review',async()=>{
  let calls=0;
