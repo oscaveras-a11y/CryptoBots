@@ -9,6 +9,7 @@ import { runDevelopmentCycle } from './cycle.js';
 import { findCodeExamples } from './examples.js';
 import { summarizeExperience } from './experience.js';
 import { runIsolatedNodeTests } from './isolated-runner.js';
+import { checkNodeProposal } from './check-node-proposal.js';
 import { mapArchitecture, rankSolutions, diagnoseFailures, planRefactor } from './intelligence.js';
 import { extname, posix } from 'node:path';
 
@@ -88,7 +89,7 @@ export default async function code({ instruction = '', data = {} } = {}, context
   if (operation === 'run_tests') return context.allowIsolatedExecution===true ? runIsolatedNodeTests({files:data.files??[],timeoutMs:data.timeoutMs??12000}) : {status:'execution_permission_required',executed:false};
   if (operation === 'examples') return findCodeExamples(data.topic ?? instruction,data.limit ?? 3);
   if (operation === 'experience') return summarizeExperience(data.records ?? [],data.limit ?? 10);
-  if (operation === 'cycle') return runDevelopmentCycle({...data,instruction:data.topic ?? instruction},{generateChanges:context.generateChanges,prepareChanges,runChecks:context.runChecks});
+  if (operation === 'cycle') return runDevelopmentCycle({...data,instruction:data.topic ?? instruction},{generateChanges:context.generateChanges,prepareChanges,runChecks:context.runChecks ?? (context.allowIsolatedExecution===true ? checkNodeProposal : undefined)});
   if (operation === 'develop') return developCode({...data,instruction:data.topic ?? instruction},{generateChanges:context.generateChanges,prepareChanges,runChecks:context.runChecks});
   if (operation === 'engineering') return engineeringBrief({instruction:data.topic ?? instruction,files:data.files ?? [],diagnostics:data.diagnostics ?? [],limit:data.limit ?? 5});
   if (operation === 'knowledge') return getCodeKnowledge({topic:data.topic ?? instruction,limit:data.limit ?? 5});
