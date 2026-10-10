@@ -1,4 +1,5 @@
 import { advancedLessons } from './advanced-knowledge.js';
+import { languageLessons } from './language-knowledge.js';
 // Curated software-engineering playbook, not model training or autonomous code generation.
 const lessons = [
  {id:'requirements',tags:['design','architecture','planning'],title:'Define contracts before coding',guidance:'Identify user-visible behavior, inputs, outputs, failure modes, constraints and acceptance criteria. Separate assumptions from verified facts.',checks:['Write acceptance criteria','List edge cases','Define API and data contracts']},
@@ -15,7 +16,7 @@ const lessons = [
 export function getCodeKnowledge({topic='',limit=5}={}) {
  if(typeof topic!=='string'||topic.length>300||!Number.isInteger(limit)||limit<1||limit>10)throw new TypeError('invalid_knowledge_query');
  const tokens=[...new Set(topic.toLowerCase().split(/[^a-z0-9]+/).filter(x=>x.length>2))];
- const ranked=[...lessons,...advancedLessons].map((lesson,index)=>({
+ const ranked=[...lessons,...advancedLessons,...languageLessons].map((lesson,index)=>({
   lesson,index,score:tokens.reduce((score,token)=>score+(lesson.tags.some(tag=>tag.includes(token))?3:0)+(lesson.title.toLowerCase().includes(token)?2:0),0)
  })).sort((a,b)=>b.score-a.score||a.index-b.index);
  return {status:'knowledge_ready',topic,lessons:ranked.slice(0,limit).map(({lesson})=>({...lesson})),
