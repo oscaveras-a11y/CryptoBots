@@ -183,9 +183,14 @@ export class VerisCore {
           const research = record('research', await this.#call('research', { instruction: message, data: routedData }, task));
           task.research = research.status === 'ok' ? research.result : { status: research.status, error: research.error };
           if (research.status === 'ok' && research.result?.status === 'evidence_collected') {
-            const verification = record('verify', await this.#call('verify', { research: research.result }, task));
+            // Verification and summarization read the same evidence independently.
+            const [verification, mind] = await Promise.all([
+              this.#call('verify', { research: research.result }, task),
+              this.#call('mind', { message, intent: 'question', data: { ...routedData, researchEvidence: research.result.evidence } }, task)
+            ]);
+            record('verify', verification);
+            record('mind', mind);
             task.researchReview = verification.status === 'ok' ? verification.result : { status: 'error', error: verification.error };
-            const mind = record('mind', await this.#call('mind', { message, intent: 'question', data: { ...routedData, researchEvidence: research.result.evidence } }, task));
             task.answer = mind.status === 'ok' ? mind.result?.answer : 'Fontes coletadas; resumo indisponível.';
             task.citations = mind.status === 'ok' ? mind.result?.citations ?? [] : [];
             task.status = 'needs_verification';
@@ -193,9 +198,15 @@ export class VerisCore {
             return task;
           }
         }
-        const mind = record('mind', await this.#call('mind', { message, intent, data: routedData }, task));
-        if (intent === 'task' && mode === 'informational') {
-          const planner=record('planner',await this.#call('planner',{message,scope,data:routedData},task));
+        // Planning and response generation are independent for informational tasks.
+        const informationalPlan = intent === 'task' && mode === 'informational';
+        const [mindResponse, plannerResponse] = await Promise.all([
+          this.#call('mind', { message, intent, data: routedData }, task),
+          informationalPlan ? this.#call('planner', { message, scope, data: routedData }, task) : Promise.resolve(null)
+        ]);
+        const mind = record('mind', mindResponse);
+        if (informationalPlan) {
+          const planner = record('planner', plannerResponse);
           const steps=planner.status==='ok' && Array.isArray(planner.result?.steps)?planner.result.steps:[];
           task.plan={steps,suggestedChecks:mind.result?.next?.suggested_checks??[],requiresSelection:planner.result?.requiresSelection??true};
           task.answer=steps.length?'Plano preparado para '+steps.map(s=>s.agent).join(', ')+'.\n'+steps.map((s,i)=>(i+1)+'. '+s.instruction).join('\n'):'Preciso identificar o agente e os detalhes do objetivo para preparar o plano.';
