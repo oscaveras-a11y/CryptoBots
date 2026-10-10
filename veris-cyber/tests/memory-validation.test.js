@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {join,fileURLToPath} from 'node:path';
+import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 
 test('memory rejects invalid scopes, source and query limits',async t=>{
