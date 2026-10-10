@@ -12,7 +12,7 @@ test('twelve distinct advanced knowledge domains are available',()=>{
  }
 });
 test('engineering workflow retrieves specialized knowledge',async()=>{
- for(const [topic,id] of [['distributed retry','distributed'],['observability tracing','observability'],['frontend accessibility','frontend'],['mobile offline','mobile'],['api rest','api'],['concurrency race','concurrency'],['deployment release','deployment'],['docker container','containers'],['algorithm complexity','algorithms'],['git github','git'],['privacy encryption','privacy'],['llm rag','ai']]){
+ for(const [topic,id] of [['distributed retry','distributed'],['observability tracing','observability'],['frontend accessibility','frontend'],['mobile offline','mobile'],['api http','api'],['concurrency race','concurrency'],['deployment release','deployment'],['docker container','containers'],['algorithm complexity','algorithms'],['git github','git'],['privacy encryption','privacy'],['llm rag','ai']]){
   const r=await code({data:{operation:'engineering',topic,limit:3}});
   assert.equal(r.guidance[0].id,id,topic);
   assert.equal(r.executed,false);
