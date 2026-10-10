@@ -44,6 +44,30 @@ export function planWaves(steps, concurrency = 3) {
   }
   return waves;
 }
+// Structural diagnostics: identify bottlenecks without claiming runtime speedups.
+export function analyzePlan(steps, concurrency = 3) {
+  const plan = validatePlan(steps);
+  const waves = planWaves(plan, concurrency);
+  const depth = new Map();
+  for (const wave of waves) {
+    for (const id of wave) {
+      const step = plan.find(item => item.id === id);
+      depth.set(id, 1 + Math.max(0, ...step.dependsOn.map(dep => depth.get(dep))));
+    }
+  }
+  const criticalDepth = Math.max(...depth.values());
+  const criticalSteps = plan.filter(step => depth.get(step.id) === criticalDepth).map(step => step.id);
+  return {
+    stepCount: plan.length,
+    waveCount: waves.length,
+    maxParallelWidth: Math.max(...waves.map(w => w.length)),
+    criticalDepth,
+    criticalSteps,
+    agents: [...new Set(plan.map(step => step.agent))],
+    containsExecution: plan.some(step => ['action','code','cyber'].includes(step.agent)),
+    waves
+  };
+}
 export default function planner({ message = '', data = {} } = {}) {
   if (!hasText(message) || message.length > 4000) throw new TypeError('invalid_plan_request');
   const requested = data?.requestedAgent;
@@ -61,7 +85,7 @@ export default function planner({ message = '', data = {} } = {}) {
       return { steps: [], requiresSelection: true, reason: 'multi_agent_confirmation_required' };
     if (steps.some(s => s.agent === 'cyber') && (data?.authorization?.confirmed !== true || !data?.target || !data?.activity))
       return { steps: [], requiresSelection: false, reason: 'explicit_pentest_scope_required' };
-    return { steps, waves: planWaves(steps), requiresSelection: false, execution: 'requires_guard_and_authorization' };
+    return { steps, waves: planWaves(steps), analysis: analyzePlan(steps), requiresSelection: false, execution: 'requires_guard_and_authorization' };
   } catch (error) {
     return { steps: [], requiresSelection: true, reason: error instanceof Error ? error.message : 'invalid_plan' };
   }
