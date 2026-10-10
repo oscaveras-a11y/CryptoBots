@@ -22,20 +22,20 @@ test('service is read-only without host adapters', async t => {
   const root = await mkdtemp(join(tmpdir(), 'code-service-'));
   t.after(() => rm(root, { recursive:true, force:true }));
   await writeFile(join(root,'app.js'), '// TODO: review');
-  const svc = createCodeService({ trustedProjects: {demo:root} });
-  const scan = await svc.inspect('demo');
+  const svc = createCodeService({ trustedProjects: {demo:root}, resolveTaskPermission:async () => {confirmed:true,project:'demo',operations:['inspect','propose','stage','test','review','security-audit'],allowPaths:['app.js','src/**'],denyPaths:[],expiresAt:Date.now()+60000} });
+  const scan = await svc.inspect('demo','task');
   assert.equal(scan.findings[0].code, 'unfinished_work');
-  await assert.rejects(() => svc.propose('demo','fix'), /native_engine_operation_not_supported/);
-  assert.equal((await svc.test('demo','review-1',{project:'demo',operation:'test',reviewReference:'review-1'})).status, 'requires_trusted_test_adapter');
-  assert.equal((await svc.review('demo','review-1',{project:'demo',operation:'review',reviewReference:'review-1'})).status, 'requires_github_review_adapter');
-  await assert.rejects(() => svc.inspect('other'), /project_not_registered/);
+  await assert.rejects(() => svc.propose('demo','fix',{},'task'), /native_engine_operation_not_supported/);
+  assert.equal((await svc.test('demo','review-1',{project:'demo',operation:'test',reviewReference:'review-1'},'task')).status, 'requires_trusted_test_adapter');
+  assert.equal((await svc.review('demo','review-1',{project:'demo',operation:'review',reviewReference:'review-1'},'task')).status, 'requires_github_review_adapter');
+  await assert.rejects(() => svc.inspect('other','task'), /project_not_registered/);
 });
 test('test adapter is never invoked without trusted authorization', async t => {
   const root = await mkdtemp(join(tmpdir(), 'code-check-'));
   t.after(() => rm(root, { recursive:true, force:true }));
   let called = false;
-  const svc = createCodeService({ trustedProjects:{demo:root}, verifyApproval:async () => false, runChecks:async () => {called=true;} });
-  const result = await svc.test('demo','review-1',{project:'demo',operation:'test',reviewReference:'review-1'});
+  const svc = createCodeService({ trustedProjects:{demo:root},resolveTaskPermission:async () => {confirmed:true,project:'demo',operations:['inspect','propose','stage','test','review','security-audit'],allowPaths:['app.js','src/**'],denyPaths:[],expiresAt:Date.now()+60000}, verifyApproval:async () => false, runChecks:async () => {called=true;} });
+  const result = await svc.test('demo','review-1',{project:'demo',operation:'test',reviewReference:'review-1'},'task');
   assert.equal(result.status,'approval_required');
   assert.equal(called,false);
 });
