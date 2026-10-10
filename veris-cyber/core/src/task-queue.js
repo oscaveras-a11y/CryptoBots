@@ -17,7 +17,7 @@ export class TaskQueue {
     if(!Number.isInteger(maxCompleted)||maxCompleted<1||maxCompleted>1000)throw new TypeError('invalid_max_completed');
     this.#maxCompleted=maxCompleted;
   }
-  get stats() { return { active: this.#active, pending: this.#pending.length, concurrency: this.#limit }; }
+  get stats() { return { active: this.#active, pending: this.#pending.length, concurrency: this.#limit, capacity: this.#maxPending, availableSlots: Math.max(0,this.#limit-this.#active) }; }
   get(id) {
     const j = this.#jobs.get(id);
     return j ? { id: j.id, status: j.status, createdAt: j.createdAt, startedAt: j.startedAt, finishedAt: j.finishedAt, result: j.result, error: j.error } : null;
