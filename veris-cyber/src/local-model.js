@@ -12,7 +12,34 @@ export function createLocalModel({endpoint,model='jarvis-local',apiKey=null,fetc
     try{
       const response=await fetchImpl(url.href,{method:'POST',redirect:'error',signal:controller.signal,headers:{'Content-Type':'application/json',...(apiKey?{Authorization:'Bearer '+apiKey}:{})},body:JSON.stringify({model,stream:false,temperature:0.2,max_tokens:192,messages:[{role:'system',content:'Você é JARVIS, assistente local. Responda em português, de forma breve. Não invente execução de ações ou fontes. Você só produz texto e não tem ferramentas. Se não souber, diga isso.'},{role:'user',content:message}]})});
       if(!response.ok)return {status:'local_model_error',reply:'O modelo local não respondeu corretamente.',execution:'none'};
-      const text=await response.text();if(text.length>100000)throw new Error('model_response_too_large');
+      // Bound memory while receiving the response, not after buffering it.
+      const limit=100000;
+      let text;
+      if(response.body?.getReader){
+        const reader=response.body.getReader();
+        const decoder=new TextDecoder();
+        let bytes=0;
+        text='';
+        try{
+          while(true){
+            const {done,value}=await reader.read();
+            if(done)break;
+            bytes+=value.byteLength;
+            if(bytes>limit)throw new Error('model_response_too_large');
+            text+=decoder.decode(value,{stream:true});
+          }
+          text+=decoder.decode();
+        }catch(error){
+          await reader.cancel().catch(()=>{});
+          throw error;
+        }finally{
+          reader.releaseLock();
+        }
+      }else{
+        // Compatibility with test doubles that expose only response.text().
+        text=await response.text();
+        if(Buffer.byteLength(text,'utf8')>limit)throw new Error('model_response_too_large');
+      }
       const payload=JSON.parse(text),reply=payload?.choices?.[0]?.message?.content;
       if(typeof reply!=='string'||!reply.trim())throw new Error('empty_model_reply');
       return {status:'ok',reply:reply.slice(0,12000),model,execution:'text_only',verified:false,externalRequest:false};
