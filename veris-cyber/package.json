@@ -8,7 +8,8 @@
     "test": "node --test",
     "setup": "node scripts/setup.js",
     "code-access": "node scripts/code-access.js",
-    "model:start": "node scripts/start-local-model.js"
+    "model:start": "node scripts/start-local-model.js",
+    "chat": "node scripts/chat-local.js"
   },
   "engines": {
     "node": ">=20"

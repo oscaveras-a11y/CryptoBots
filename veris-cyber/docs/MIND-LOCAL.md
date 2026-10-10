@@ -30,3 +30,7 @@ A instância antiga do painel em 3200 ainda não foi reiniciada; uma revisão au
 Modelo pequeno: respostas podem ser incorretas ou mal formuladas. Respostas são limitadas a192tokens; contexto1024tokens limita pedidos longos. Não há histórico de conversa neural por sessão nesta versão; cada pedido contém instrução de sistema e a mensagem atual. MEMORY armazena separadamente somente os registros admitidos por seus fluxos. Privacidade local não protege contra outros programas com acesso à mesma conta do Windows.
 
 Fontes oficiais: https://github.com/ggml-org/llama.cpp/releases/tag/b11541 e https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF .
+
+## Conversar sem reiniciar o painel
+
+Com o modelo rodando, use npm run chat -- "Olá, Jarvis" dentro de veris-cyber. Esse comando chama o MIND através do CORE diretamente, sem depender do servidor antigo em3200, sem pesquisar na internet ou executar ferramentas. Cada comando é uma conversa independente.
