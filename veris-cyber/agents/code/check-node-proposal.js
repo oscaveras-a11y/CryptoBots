@@ -1,4 +1,7 @@
 import { runIsolatedNodeTests } from './isolated-runner.js';
+import { createRequire } from 'node:module';
+const require=createRequire(import.meta.url);
+const { parseArgs }=require('node:util');
 
 // Executes a proposed Node.js test suite in Docker, never on the host.
 export async function checkNodeProposal({proposal,files=[]}={}) {
@@ -8,5 +11,6 @@ export async function checkNodeProposal({proposal,files=[]}={}) {
  const suite=[...merged.values()].filter(f=>/\.(?:m?js|json)$/.test(f.path));
  const result=await runIsolatedNodeTests({files:suite});
  const record={name:'node --test',source:'docker-node',status:result.status==='passed'?'passed':'failed',message:result.status};
- return {testResults:[record],staticAnalysis:[],runnerResult:result};
+ const staticAnalysis=[{name:'file policy',source:'code-static',status:suite.length>0&&suite.every(f=>typeof f.content==='string'&&f.content.length<=200000)?'passed':'failed'}];
+ return {testResults:[record],staticAnalysis,runnerResult:result};
 }
