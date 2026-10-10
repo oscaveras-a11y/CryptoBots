@@ -296,7 +296,6 @@ export class VerisCore {
           task.code=result;task.status=result.status;return task;
         }
         if (response.status !== 'ok' || response.result?.status === 'blocked' || response.result?.status?.startsWith('requires_')) { task.status = 'incomplete'; return task; }
-      }
         }
       }
       const verification = record('verify', await this.#call('verify', { message, steps: task.steps, scope }, task));
