@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import sense from '../index.js';
+import sense from './index.js';
 
 test('identifies Portuguese questions with and without accents', () => {
   assert.equal(sense({message:'Como funciona o JARVIS?'}).intent,'question');

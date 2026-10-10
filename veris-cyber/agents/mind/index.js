@@ -1,4 +1,4 @@
-import { createReasoningSession, nextReasoningStep } from '../../src/native-reasoning.js';
+import { planTask } from '../../src/reasoning.js';
 
 export default async function mind({ message = '', intent = 'task', data = {} } = {}, context = {}) {
   if (typeof message !== 'string' || !message.trim() || message.length > 4000) {
@@ -19,7 +19,8 @@ export default async function mind({ message = '', intent = 'task', data = {} } 
     }
     return { status: 'needs_evidence', answer: 'Preciso consultar uma fonte confiável antes de responder.', nextAgent: 'research', evidence, verified: false };
   }
-  const session = createReasoningSession({ objective: message, scope: '', authorized: false });
-  const next = nextReasoningStep(session);
+  // Planning is advisory and cannot grant execution permissions.
+  const plan = planTask(message);
+  const next = { phase: 'investigate', suggested_checks: plan.steps.map(step => step.title), execution: 'requires_separate_authorized_tool' };
   return { status: 'planning', answer: 'Objetivo analisado; encaminhando para planejamento.', nextAgent: 'planner', next, executed: false, verified: false, evidence };
 }

@@ -5,3 +5,6 @@ node_modules/
 *.log
 coverage/
 data/
+
+# JARVIS local API credential
+/veris-cyber/config/api-token

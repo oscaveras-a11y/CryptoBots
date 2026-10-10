@@ -19,7 +19,10 @@ permissions:
 jobs:
   test:
     name: Testes locais da VERIS CYBER
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     defaults:
       run:

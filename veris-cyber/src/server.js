@@ -1,3 +1,7 @@
+import { createAccessGuard } from './access.js';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { auditSource } from './source-audit.js';
@@ -9,13 +13,18 @@ import { verisCore } from '../core/src/index.js';
 import { connectAgents } from '../core/src/connect-agents.js';
 connectAgents(verisCore);
 
-export function createServer() {
-  return http.createServer(async (req, res) => {
+export function createServer({ token = process.env.CYBER_API_TOKEN } = {}) {
+  const authorize = createAccessGuard(token);
+  const server = http.createServer(async (req, res) => {
     const reply = (status, data) => {
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
       res.end(JSON.stringify(data));
     };
     if (req.method === 'GET' && req.url === '/health') return reply(200, { ok: true, service: 'veris-cyber', mode: 'demo' });
+    if (req.url.startsWith('/api/')) {
+      const denied = authorize(req);
+      if (denied) return reply(denied.status, {error: denied.error});
+    }
     if (req.method === 'GET' && req.url === '/api/core/agents') return reply(200, { agents: verisCore.agents });
     if (req.method === 'POST' && req.url === '/api/core/run') {
       let body = '';
@@ -111,10 +120,19 @@ export function createServer() {
     }
     return reply(404, { error: 'not_found' });
   });
+  server.requestTimeout = 30000;
+  server.headersTimeout = 15000;
+  return server;
 }
 
-if (process.argv[1] && import.meta.url === new URL('file://' + process.argv[1].replace(/\\/g, '/')).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const port = Number(process.env.CYBER_PORT || 3200);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid CYBER_PORT');
-  createServer().listen(port, '127.0.0.1', () => console.log('VERIS CYBER local API listening on 127.0.0.1:' + port));
+  try {
+    const token = process.env.CYBER_API_TOKEN || readFileSync(new URL('../config/api-token', import.meta.url), 'utf8').trim();
+    createServer({token}).listen(port, '127.0.0.1', () => console.log('VERIS CYBER local API listening on 127.0.0.1:' + port));
+  } catch {
+    console.error('Configure o acesso com npm run setup antes de iniciar.');
+    process.exitCode = 1;
+  }
 }

@@ -16,17 +16,21 @@ export function createCodeService({ trustedProjects = {}, generateChanges = crea
     const policy = await resolveTaskPermission(taskId);
     return authorizeCodeTask(policy,request);
   }
+  async function readScoped(project, taskId, operation) {
+    return readProject(select(project), { authorizePath: async path =>
+      (await requireScope(taskId, {operation, project, paths: [path]})).allowed === true });
+  }
   return {
     async inspect(project, taskId) {
       const permission = await requireScope(taskId,{operation:'inspect',project,paths:[]});
       if (!permission.allowed) return {status:permission.reason,executed:false};
-      const { files, truncated, totalBytes } = await readProject(select(project));
+      const { files, truncated, totalBytes } = await readScoped(project, taskId, 'inspect');
       return { ...analyzeProject(files), project, truncated, totalBytes };
     },
     async securityAudit(project, taskId) {
       const permission = await requireScope(taskId,{operation:'security-audit',project,paths:[]});
       if (!permission.allowed) return {status:permission.reason,executed:false};
-      const { files, truncated } = await readProject(select(project));
+      const { files, truncated } = await readScoped(project, taskId, 'security-audit');
       return { ...auditSource(files), project, truncated };
     },
     async propose(project, instruction, options = {}, taskId) {
@@ -34,7 +38,7 @@ export function createCodeService({ trustedProjects = {}, generateChanges = crea
       if (!permission.allowed) return {status:permission.reason,executed:false};
       if (typeof generateChanges !== 'function') return { status: 'requires_code_model_adapter', executed: false };
       if (typeof instruction !== 'string' || !instruction.trim() || instruction.length > 4000) throw new TypeError('invalid_instruction');
-      const { files, truncated } = await readProject(select(project));
+      const { files, truncated } = await readScoped(project, taskId, 'propose');
       if (truncated) return { status: 'project_context_incomplete', executed: false };
       const changes = await generateChanges({ project, instruction, files: files.map(f => ({ ...f })), options });
       if (!changes.length) return { status: 'no_changes_needed', executed: false, project };

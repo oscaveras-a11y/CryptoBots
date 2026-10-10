@@ -17,6 +17,8 @@ test('known question uses safe response',async()=>{
 test('authorization alone never enables execution',async()=>{
  const core=connectAgents(new VerisCore());
  const result=await core.run({message:'Execute algo',scope:'lab',authorized:true,data:{requestedAgent:'action'}});
- assert.equal(result.status,'approval_required');
+ assert.equal(result.status,'blocked');
+ assert.equal(result.reason,'guard_approval_required');
+ assert.ok(!result.trace.some(step=>step.agent==='action'));
  assert.ok(!result.verified);
 });
