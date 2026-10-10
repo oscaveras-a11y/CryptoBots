@@ -251,6 +251,19 @@ export class VerisCore {
       // Parallel waves are currently planning metadata only, never implicit execution approval.
       task.plan = { steps: validatedSteps, waves };
       task.steps = [];
+      // Bounded recovery: retry only failed read-only agents. Never replay actions,
+      // code changes, or security operations automatically.
+      const callPlanned = async (step, dependencies) => {
+        const input = { instruction: step.instruction, scope, data: {
+          ...routedData, dependencies: Object.fromEntries(step.dependsOn.map(id => [id, dependencies.get(id)?.result ?? null]))
+        } };
+        const first = await this.#call(step.agent, input, task);
+        if (!['research', 'vision'].includes(step.agent) || first.status !== 'error') return first;
+        const second = await this.#call(step.agent, input, task);
+        task.recovery ??= [];
+        task.recovery.push({ stepId: step.id, agent: step.agent, strategy: 'retry_once_read_only', recovered: second.status === 'ok' });
+        return { ...second, attempts: 2, durationMs: (first.durationMs ?? 0) + (second.durationMs ?? 0) };
+      };
       // Execute independent read-only research/vision steps concurrently within each wave.
       // Side-effecting agents retain the original sequential approval/review path.
       const completed = new Map();
@@ -258,10 +271,7 @@ export class VerisCore {
         const batch = wave.map(id => validatedSteps.find(step => step.id === id));
         const independent = batch.every(step => ['research', 'vision'].includes(step.agent));
         if (independent) {
-          const responses = await Promise.all(batch.map(step => this.#call(step.agent, {
-            instruction: step.instruction, scope,
-            data: { ...routedData, dependencies: Object.fromEntries(step.dependsOn.map(id => [id, completed.get(id)?.result ?? null])) }
-          }, task)));
+          const responses = await Promise.all(batch.map(step => callPlanned(step, completed)));
           for (let i = 0; i < batch.length; i++) {
             const step = batch[i], response = record(step.agent, responses[i]);
             const outcome = { id: step.id, agent: step.agent, ...response };
@@ -277,7 +287,7 @@ export class VerisCore {
         if (ACTION_AGENTS.has(step.agent) && guard.result?.allowExecution !== true) {
           task.status = 'approval_required'; task.reason = 'execution_not_approved'; return task;
         }
-        const response = record(step.agent, await this.#call(step.agent, { instruction: step.instruction, scope, data: { ...routedData, dependencies: Object.fromEntries(step.dependsOn.map(id => [id, completed.get(id)?.result ?? null])) } }, task));
+        const response = record(step.agent, await callPlanned(step, completed));
         const outcome = { id: step.id, agent: step.agent, ...response };
         task.steps.push(outcome);
         completed.set(step.id, outcome);
