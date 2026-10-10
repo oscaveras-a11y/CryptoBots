@@ -83,10 +83,10 @@ export class VerisCore {
     return response.status === 'ok' ? response.result : { status: 'error', error: response.error };
   }
   // CODE access goes through CORE; host-owned adapters enforce project allowlists and approvals.
-  async codeOperation({ operation, project, instruction, proposal, approval, reviewReference } = {}) {
+  async codeOperation({ operation, project, instruction, proposal, approval, reviewReference, options } = {}) {
     if (!this.#codeService) return { status: 'requires_code_service', executed: false };
     if (operation === 'inspect') return this.#codeService.inspect(project);
-    if (operation === 'propose') return this.#codeService.propose(project, instruction);
+    if (operation === 'propose') return this.#codeService.propose(project, instruction, options);
     if (operation === 'stage') return this.#codeService.stage(project, proposal, approval);
     if (operation === 'test') return this.#codeService.test(project, reviewReference, approval);
     if (operation === 'review') return this.#codeService.review(project, reviewReference, approval);
