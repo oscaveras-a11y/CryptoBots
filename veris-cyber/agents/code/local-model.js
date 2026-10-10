@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 // Local coding model adapter (Ollama). Generates proposals only: no filesystem writes or shell execution.
 const DEFAULT_URL = 'http://127.0.0.1:11434/api/chat';
 const SYSTEM = [
@@ -32,7 +33,7 @@ export function createLocalCodeModel({ model = 'qwen2.5-coder:7b', endpoint = DE
           options: { temperature:0.1, num_predict:8192 },
           messages:[
             {role:'system',content:SYSTEM},
-            {role:'user',content:JSON.stringify({task:instruction,project,files:files.map(({path,content})=>({path,content}))})}
+            {role:'user',content:JSON.stringify({task:instruction,project,files:files.map(({path,content})=>({path,content,sha256:createHash('sha256').update(content).digest('hex')}))})}
           ]
         })
       });
