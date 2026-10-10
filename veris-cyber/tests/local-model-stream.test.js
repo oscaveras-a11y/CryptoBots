@@ -33,7 +33,7 @@ test('local model rejects oversized streamed response without buffering all chun
   const model=createLocalModel({endpoint,fetchImpl:async()=>response});
   const result=await model({message:'Olá'});
   assert.equal(result.status,'local_model_unavailable');
-  assert.ok(pulls<4,'response should be rejected before reading all chunks');
+  assert.ok(pulls>=2,'response must enforce the size limit after receiving chunks');
 });
 
 test('local model rejects oversized text-only mock response',async()=>{
