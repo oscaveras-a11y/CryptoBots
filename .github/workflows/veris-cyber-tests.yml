@@ -1,0 +1,42 @@
+name: VERIS CYBER - Tests
+
+on:
+  push:
+    branches:
+      - feature/veris-cyber
+    paths:
+      - 'veris-cyber/**'
+      - '.github/workflows/veris-cyber-tests.yml'
+  pull_request:
+    paths:
+      - 'veris-cyber/**'
+      - '.github/workflows/veris-cyber-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Testes locais da VERIS CYBER
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: veris-cyber
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verificar sintaxe
+        run: |
+          node --check src/server.js
+          node --check src/source-audit.js
+      - name: Executar testes automatizados
+        run: npm test

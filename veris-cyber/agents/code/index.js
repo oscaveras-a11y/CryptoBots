@@ -1,0 +1,86 @@
+// CODE: project inspection, evidence-backed findings, proposals and explicitly gated changes.
+// No filesystem, shell, network or GitHub write capability is granted by default.
+import { createHash } from 'node:crypto';
+import { extname, posix } from 'node:path';
+
+const MAX_FILES = 200, MAX_BYTES = 300_000;
+const SECRET = /(^|\/)(\.env(?:\..*)?|id_rsa|id_ed25519|.*\.(?:pem|key|p12)|secrets?\.(?:json|ya?ml))$/i;
+const SUPPORTED = new Set(['.js','.mjs','.cjs','.ts','.tsx','.jsx','.py','.html','.css','.json','.sql','.md','.yml','.yaml']);
+const hash = value => createHash('sha256').update(value).digest('hex');
+function safePath(path) {
+  if (typeof path !== 'string' || !path || path.length > 260 || path.includes('\\') || path.includes('\0') || path.startsWith('/') || /^[A-Za-z]:/.test(path)) return false;
+  const parts = path.split('/');
+  return parts.every(p => p && p !== '.' && p !== '..') && posix.normalize(path) === path && !SECRET.test(path);
+}
+function sanitizeFiles(files) {
+  if (!Array.isArray(files) || files.length > MAX_FILES) throw new TypeError('invalid_project_files');
+  let bytes = 0;
+  const seen = new Set();
+  return files.map(file => {
+    if (!file || !safePath(file.path) || typeof file.content !== 'string' || !SUPPORTED.has(extname(file.path).toLowerCase())) throw new TypeError('invalid_project_file');
+    if (seen.has(file.path)) throw new TypeError('duplicate_project_path');
+    seen.add(file.path);
+    bytes += Buffer.byteLength(file.content);
+    if (bytes > MAX_BYTES) throw new TypeError('project_too_large');
+    return { path: file.path, content: file.content, sha256: hash(file.content) };
+  });
+}
+function inspect(files) {
+  const findings = [];
+  for (const f of files) {
+    const lines = f.content.split(/\r?\n/);
+    lines.forEach((line, i) => {
+      const rules = [
+        [/\beval\s*\(/, 'dynamic_code_execution', 'high'],
+        [/\b(?:exec|execSync)\s*\(/, 'shell_execution_review', 'high'],
+        [/\b(?:password|apiKey|secret|token)\s*[:=]\s*['"][^'"]{8,}['"]/, 'possible_embedded_credential', 'high'],
+        [/\bTODO\b|\bFIXME\b/, 'unfinished_work', 'low']
+      ];
+      for (const [regex, code, severity] of rules) if (regex.test(line)) findings.push({ path: f.path, line: i + 1, code, severity, status: 'requires_review' });
+    });
+  }
+  return findings.slice(0, 100);
+}
+export function analyzeProject(files) {
+  const entries = sanitizeFiles(files);
+  return { status: 'analyzed', executed: false, files: entries.map(({path,sha256}) => ({path,sha256})), findings: inspect(entries), limitations: ['heuristic_checks_only', 'no_runtime_tests', 'no_model_review'] };
+}
+export function prepareChanges(files, changes) {
+  const entries = sanitizeFiles(files), current = new Map(entries.map(f => [f.path, f]));
+  if (!Array.isArray(changes) || !changes.length || changes.length > 20) throw new TypeError('invalid_changes');
+  const paths = new Set();
+  const proposal = changes.map(c => {
+    if (!c || !safePath(c.path) || paths.has(c.path) || typeof c.content !== 'string' || Buffer.byteLength(c.content) > MAX_BYTES || !SUPPORTED.has(extname(c.path).toLowerCase())) throw new TypeError('invalid_change');
+    paths.add(c.path);
+    const before = current.get(c.path);
+    if (!before && c.expectedSha256 !== null) throw new TypeError('new_file_requires_null_baseline');
+    if (before && c.expectedSha256 !== before.sha256) throw new TypeError('stale_file_baseline');
+    return { path: c.path, beforeSha256: before?.sha256 ?? null, afterSha256: hash(c.content), content: c.content };
+  });
+  return { status: 'proposal_ready', proposalId: hash(JSON.stringify(proposal.map(({path,beforeSha256,afterSha256}) => ({path,beforeSha256,afterSha256})))), changes: proposal, executed: false };
+}
+export async function applyApprovedProposal(proposal, approval, adapters = {}) {
+  if (proposal?.status !== 'proposal_ready' || !Array.isArray(proposal.changes)) throw new TypeError('invalid_proposal');
+  if (!approval || approval.confirmed !== true || approval.proposalId !== proposal.proposalId || typeof approval.project !== 'string' || !approval.project.trim() || approval.branch === 'main' || approval.branch === 'master' || typeof approval.branch !== 'string' || !approval.branch.trim() || !Array.isArray(approval.paths)) return { status: 'approval_required', executed: false };
+  if (proposal.changes.some(c => !approval.paths.includes(c.path))) return { status: 'out_of_scope', executed: false };
+  // A user-supplied approval object is not sufficient: CORE must independently verify authorization.
+  if (typeof adapters.verifyApproval !== 'function') return { status: 'requires_trusted_approval_verifier', executed: false };
+  const trusted = await adapters.verifyApproval({ approval, proposalId: proposal.proposalId, paths: proposal.changes.map(c => c.path) });
+  if (trusted !== true) return { status: 'approval_required', executed: false };
+  if (typeof adapters.stageChanges !== 'function') return { status: 'requires_isolated_workspace_adapter', executed: false };
+  // The adapter must enforce sandboxing, branch protection, baseline SHA checks and atomicity.
+  const result = await adapters.stageChanges({ project: approval.project, branch: approval.branch, changes: proposal.changes.map(c => ({...c})) });
+  return { status: result?.staged === true ? 'staged_for_review' : 'staging_failed', executed: result?.staged === true, reviewReference: result?.reviewReference ?? null };
+}
+export default async function code({ instruction = '', data = {} } = {}, context = {}) {
+  if (context.signal?.aborted) throw new Error('code_aborted');
+  if(typeof context.codeOperation==='function' && typeof data.project==='string')return context.codeOperation({...data,instruction});
+  const operation = data.operation ?? 'inspect';
+  if (operation === 'inspect') {
+    if (!Array.isArray(data.files)) return { status: 'requires_project_files', instruction, executed: false };
+    return analyzeProject(data.files);
+  }
+  if (operation === 'propose') return prepareChanges(data.files, data.changes);
+  if (operation === 'stage') return applyApprovedProposal(data.proposal, data.approval, { stageChanges: context.stageChanges, verifyApproval: context.verifyApproval });
+  return { status: 'unsupported_code_operation', executed: false };
+}
