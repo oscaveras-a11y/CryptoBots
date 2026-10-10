@@ -78,7 +78,24 @@ export class VerisCore {
   get agents() { return AGENT_NAMES.map(name => ({ name, connected: this.#handlers.has(name) })); }
   get capabilities(){
     const available={sense:true,mind:true,memory:true,planner:true,research:true,vision:!!this.#visionAnalyzer,voice:!!this.#audioTranscriber||!!this.#speechSynthesizer,code:!!this.#codeService,cyber:!!this.#cyberService,action:!!this.#actionExecutor&&!!this.#actionAuthorizer,guard:true,verify:true};
-    return AGENT_NAMES.map(name=>({name,registered:this.#handlers.has(name),ready:this.#handlers.has(name)&&available[name],...(name==='mind'?{modelReady:!!this.#mindResponder}:{}),...(name==='voice'?{transcriptionReady:!!this.#audioTranscriber,speechReady:!!this.#speechSynthesizer}:{}),state:available[name]?'local_capability':'requires_adapter'}));
+    const dependencies={
+      sense:[],mind:this.#mindResponder?[]:['language_model_for_open_ended_answers'],
+      memory:['durable_memory_storage'],planner:[],research:[],
+      vision:this.#visionAnalyzer?[]:['vision_analyzer'],
+      voice:[...(!this.#audioTranscriber?['audio_transcriber']:[]),...(!this.#speechSynthesizer?['speech_synthesizer']:[])],
+      code:this.#codeService?['isolated_test_runner','general_code_generation']:['trusted_code_service','isolated_test_runner','general_code_generation'],
+      cyber:this.#cyberService?['active_scanner']:['trusted_cyber_service','active_scanner'],
+      action:this.#actionExecutor&&this.#actionAuthorizer?['general_action_execution']:['trusted_action_executor','trusted_action_authorizer'],
+      guard:[],verify:[]
+    };
+    return AGENT_NAMES.map(name=>{
+      const registered=this.#handlers.has(name),missingDependencies=[...dependencies[name]];
+      return {name,registered,ready:registered&&available[name],
+        ...(name==='mind'?{modelReady:!!this.#mindResponder}:{}),
+        ...(name==='voice'?{transcriptionReady:!!this.#audioTranscriber,speechReady:!!this.#speechSynthesizer}:{}),
+        state:!registered?'not_registered':!available[name]?'requires_adapter':missingDependencies.length?'partial':'local_capability',
+        missingDependencies,fullyOperational:registered&&available[name]&&missingDependencies.length===0};
+    });
   }
   submitAgent(name,input){if(!AGENT_NAMES.includes(name))throw new TypeError('unknown_agent');return this.#queue.submit(()=>this.invokeAgent(name,input));}
   async cyberOperation(request){return this.#cyberService?this.#cyberService.operation(request):{status:'requires_cyber_service',executed:false};}
