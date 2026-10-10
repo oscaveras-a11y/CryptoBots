@@ -12,7 +12,7 @@ const ROUTES = [
   ['action', /\b(abrir|fechar|mover|apagar|excluir|instalar|desinstalar|executar|reiniciar|desligar|alterar|salvar|enviar|criar arquivo)\b/u]
 ];
 const QUESTION = /^(o que|quem|qual|quais|como|quando|onde|por que|porque|quanto|quantos|quantas|sera que|voce sabe|me diga|me explique|explique|pode explicar|consegue explicar|gostaria de saber)\b/u;
-const COMMAND = /^(crie|criar|faca|fazer|desenvolva|desenvolver|monte|montar|implemente|implementar|corrija|corrigir|atualize|atualizar|verifique|verificar|analise|analisar|teste|testar|pesquise|pesquisar|procure|procurar|abra|abrir|execute|executar|instale|instalar|remova|remover|apague|apagar|exclua|excluir|envie|enviar|mova|mover|salve|salvar|reinicie|reiniciar|configure|configurar|mostre|mostrar|liste|listar|leia|ler|transcreva|transcrever|traduza|traduzir|resuma|resumir|me ajude|preciso que|quero que|vamos)\b/u;
+const COMMAND = /^(continue|continuar|prossiga|prosseguir|melhore|melhorar|otimize|otimizar|crie|criar|faca|fazer|desenvolva|desenvolver|monte|montar|implemente|implementar|corrija|corrigir|atualize|atualizar|verifique|verificar|analise|analisar|teste|testar|pesquise|pesquisar|procure|procurar|abra|abrir|execute|executar|instale|instalar|remova|remover|apague|apagar|exclua|excluir|envie|enviar|mova|mover|salve|salvar|reinicie|reiniciar|configure|configurar|mostre|mostrar|liste|listar|leia|ler|transcreva|transcrever|traduza|traduzir|resuma|resumir|me ajude|preciso que|quero que|vamos)\b/u;
 const GREETING = /^(oi|ola|opa|bom dia|boa tarde|boa noite|e ai|tudo bem|obrigado|obrigada|valeu|ate logo)[!?.\s]*$/u;
 const DANGER = /\b(apagar|apague|excluir|exclua|formatar|formate|desligar|desligue|reiniciar|reinicie|transferir|transfira|comprar|compre|pagar|pague|publicar|publique|enviar|envie|instalar|instale|executar|execute)\b/u;
 export function analyzeSense(input = {}) {
@@ -26,8 +26,10 @@ export function analyzeSense(input = {}) {
   const command = COMMAND.test(normalized);
   const greeting = GREETING.test(normalized);
   const negated = /\b(nao|nunca|jamais|sem)\s+(?:quero|preciso|deve|faca|execute|apague|exclua|instale|envie)\b/u.test(normalized);
+  const quotedAction = /^(?:como|o que|por que|porque|qual|quais)\b/u.test(normalized);
+  const isQuestion = question || quotedAction;
   // Questions about an action are not requests to perform that action.
-  const intent = greeting ? 'conversation' : negated ? 'conversation' : question && !command ? 'question' : command ? 'task' : 'conversation';
+  const intent = greeting ? 'conversation' : negated ? 'conversation' : isQuestion && !command ? 'question' : command ? 'task' : 'conversation';
   const domains = ROUTES.filter(([, regex]) => regex.test(normalized)).map(([name]) => name);
   if (data.image && !domains.includes('vision')) domains.push('vision');
   if (data.audio && !domains.includes('voice')) domains.push('voice');
