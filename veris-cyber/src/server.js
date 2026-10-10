@@ -42,6 +42,23 @@ export function createServer({ token = process.env.CYBER_API_TOKEN, codeConfig =
       if (denied) return reply(denied.status, {error: denied.error});
     }
     if (req.method === 'GET' && req.url === '/api/core/agents') return reply(200, { agents: verisCore.agents });
+    if (req.method === 'GET' && req.url === '/api/core/dashboard') {
+      const capabilities = verisCore.capabilities;
+      return reply(200, {
+        service: 'JARVIS',
+        timestamp: new Date().toISOString(),
+        agents: capabilities,
+        queue: verisCore.queueStats,
+        features: {
+          voiceInput: capabilities.find(agent => agent.name === 'voice')?.transcriptionReady === true,
+          voiceOutput: capabilities.find(agent => agent.name === 'voice')?.speechReady === true,
+          vision: capabilities.find(agent => agent.name === 'vision')?.ready === true,
+          localModel: !!localModel,
+          code: !!codeConfig
+        },
+        system: { status: 'server_reachable', metricsAvailable: false }
+      });
+    }
     if(req.method==='GET' && req.url==='/api/privacy')return reply(200,{networkMode,localTextGeneration:!!localModel,externalResearch:networkMode!=='offline',researchTransport:networkMode==='tor'?'tor_required':networkMode,cloudTextGeneration:false,anonymous:false,note:networkMode==='tor'?'Tor obrigatório para pesquisas; sem conexão direta alternativa. Anonimato não é garantido.':'Pesquisas diretas revelam IP e consulta aos serviços utilizados.'});
     if(req.method==='GET' && req.url==='/api/core/capabilities')return reply(200,{agents:verisCore.capabilities});
     const agentRoute=/^\/api\/core\/agents\/(sense|mind|memory|planner|research|vision|voice|code|cyber|action|guard|verify)\/tasks$/.exec(req.url);
