@@ -10,6 +10,7 @@ import { searchMultipleSources } from '../../agents/research/multi-source.js';
 import visionAgent from '../../agents/vision/index.js';
 import voiceAgent from '../../agents/voice/index.js';
 import codeAgent from '../../agents/code/index.js';
+import {createCyberService} from '../../agents/cyber/service.js';
 import cyberAgent from '../../agents/cyber/index.js';
 import actionAgent from '../../agents/action/index.js';
 import guardAgent from '../../agents/guard/index.js';
@@ -33,8 +34,14 @@ export class VerisCore {
   #speechSynthesizer;
   #codeService;
   #mindResponder;
-  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchMultipleSources, visionAnalyzer = null, audioTranscriber = null, speechSynthesizer = null, codeService = null, mindResponder=null } = {}) {
+  #cyberService;
+  #actionExecutor;
+  #actionAuthorizer;
+  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchMultipleSources, visionAnalyzer = null, audioTranscriber = null, speechSynthesizer = null, codeService = null, mindResponder=null, actionExecutor=null, actionAuthorizer=null } = {}) {
     if (!Number.isInteger(maxHistory) || maxHistory < 1 || maxHistory > 1000) throw new TypeError('invalid_max_history');
+    for(const adapter of [actionExecutor,actionAuthorizer])if(adapter!==null&&typeof adapter!=='function')throw new TypeError('invalid_action_adapter');
+    this.#actionExecutor=actionExecutor;this.#actionAuthorizer=actionAuthorizer;
+    this.#cyberService=codeService && typeof codeService.authorize==='function'?createCyberService({codeService}):null;
     this.#maxHistory = maxHistory;
     this.#queue = new TaskQueue({ concurrency, maxPending, maxCompleted:maxHistory });
     if (typeof researchRetriever !== 'function') throw new TypeError('invalid_research_retriever');
@@ -69,6 +76,28 @@ export class VerisCore {
     return this;
   }
   get agents() { return AGENT_NAMES.map(name => ({ name, connected: this.#handlers.has(name) })); }
+  get capabilities(){
+    const available={sense:true,mind:true,memory:true,planner:true,research:true,vision:!!this.#visionAnalyzer,voice:!!this.#audioTranscriber||!!this.#speechSynthesizer,code:!!this.#codeService,cyber:!!this.#cyberService,action:!!this.#actionExecutor&&!!this.#actionAuthorizer,guard:true,verify:true};
+    return AGENT_NAMES.map(name=>({name,registered:this.#handlers.has(name),ready:this.#handlers.has(name)&&available[name],...(name==='mind'?{modelReady:!!this.#mindResponder}:{}),...(name==='voice'?{transcriptionReady:!!this.#audioTranscriber,speechReady:!!this.#speechSynthesizer}:{}),state:available[name]?'local_capability':'requires_adapter'}));
+  }
+  submitAgent(name,input){if(!AGENT_NAMES.includes(name))throw new TypeError('unknown_agent');return this.#queue.submit(()=>this.invokeAgent(name,input));}
+  async cyberOperation(request){return this.#cyberService?this.#cyberService.operation(request):{status:'requires_cyber_service',executed:false};}
+  async invokeAgent(name,input={}){
+    if(!AGENT_NAMES.includes(name))throw new TypeError('unknown_agent');
+    if(!input||typeof input!=='object'||Array.isArray(input))throw new TypeError('invalid_agent_input');
+    const data=input.data??{};
+    if(!data||typeof data!=='object'||Array.isArray(data))throw new TypeError('invalid_agent_data');
+    if(name==='code'||name==='cyber'){
+      if(!this.#codeService||typeof this.#codeService.authorize!=='function')return {status:'blocked',reason:'trusted_project_service_required'};
+      const check=this.#codeService.authorize({operation:name==='cyber'?'security-audit':data.operation,project:data.project,permissionId:data.permissionId});
+      if(!check.allowed)return {status:'blocked',reason:check.reason};
+    }
+    if(name==='action'){
+      if(!this.#actionAuthorizer||!this.#actionExecutor)return {status:'blocked',reason:'trusted_action_adapter_required'};
+      const check=await this.#actionAuthorizer(data);if(check?.allowed!==true)return {status:'blocked',reason:check?.reason??'action_not_authorized'};
+    }
+    return this.#call(name,structuredClone(input),{id:randomUUID()});
+  }
   getTask(id) { return this.#queue.get(id) ?? this.#history.get(id) ?? null; }
   get queueStats() { return this.#queue.stats; }
   submit(request) { return this.#queue.submit(() => this.run(request)); }
@@ -113,7 +142,7 @@ export class VerisCore {
     const timer = setTimeout(() => controller.abort(), name === 'voice' ? 120000 : name==='mind' && this.#mindResponder ? 65000 : name==='research' ? 30000 : TIMEOUT_MS);
     try {
       const result = await Promise.race([
-        Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id, ...(name === 'mind' && this.#mindResponder ? {generateText:this.#mindResponder} : {}), ...(name === 'code' && this.#codeService ? {codeOperation: data => this.codeOperation(data)} : {}), ...(name === 'guard' && typeof this.#codeService?.authorize === 'function' ? {checkCodePermission: request => this.#codeService.authorize(request)} : {}), ...(name === 'research' ? { retrieve: this.#researchRetriever } : {}), ...(name === 'vision' && this.#visionAnalyzer ? { analyzeImages: this.#visionAnalyzer } : {}), ...(name === 'voice' && this.#audioTranscriber ? { transcribeAudio: this.#audioTranscriber } : {}), ...(name === 'voice' && this.#speechSynthesizer ? { synthesizeSpeech: this.#speechSynthesizer } : {}) })),
+        Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id, ...(name === 'mind' && this.#mindResponder ? {generateText:this.#mindResponder} : {}), ...(name === 'cyber' && this.#cyberService ? {cyberOperation:data=>this.cyberOperation(data)} : {}), ...(name==='action' && this.#actionExecutor ? {executeAction:async(request,options)=>{const check=await this.#actionAuthorizer?.(request.data);return check?.allowed===true?this.#actionExecutor(request,options):{status:'blocked',reason:'action_not_authorized',executed:false};}} : {}), ...(name === 'code' && this.#codeService ? {codeOperation: data => this.codeOperation(data)} : {}), ...(name === 'guard' && typeof this.#codeService?.authorize === 'function' ? {checkCodePermission: request => this.#codeService.authorize(request)} : {}), ...(name === 'research' ? { retrieve: this.#researchRetriever } : {}), ...(name === 'vision' && this.#visionAnalyzer ? { analyzeImages: this.#visionAnalyzer } : {}), ...(name === 'voice' && this.#audioTranscriber ? { transcribeAudio: this.#audioTranscriber } : {}), ...(name === 'voice' && this.#speechSynthesizer ? { synthesizeSpeech: this.#speechSynthesizer } : {}) })),
         new Promise((_, reject) => controller.signal.addEventListener('abort', () => reject(new Error('agent_timeout')), { once: true }))
       ]);
       if (result === undefined) throw new Error('empty_agent_response');

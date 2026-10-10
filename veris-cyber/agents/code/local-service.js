@@ -24,7 +24,7 @@ export function createLocalCodeService({config,authorityFile,workspaceStorage}={
   }
   return {
     ...base,
-    authorize({operation,project,permissionId}){return authorizeCodeTask(authority.resolve(permissionId),{operation,project});},
+    authorize({operation,project,permissionId,paths=[]}){return authorizeCodeTask(authority.resolve(permissionId),{operation,project,paths});},
     async propose(project,instruction,options,permissionId){
       clean();const result=await base.propose(project,instruction,options,permissionId);
       if(result.status==='proposal_ready')proposals.set(project+':'+result.proposalId,{proposal:structuredClone(result),expiresAt:Date.now()+900000});

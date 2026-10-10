@@ -40,6 +40,17 @@ export function createServer({ token = process.env.CYBER_API_TOKEN, codeConfig =
     }
     if (req.method === 'GET' && req.url === '/api/core/agents') return reply(200, { agents: verisCore.agents });
     if(req.method==='GET' && req.url==='/api/privacy')return reply(200,{networkMode,localTextGeneration:!!localModel,externalResearch:networkMode!=='offline',researchTransport:networkMode==='tor'?'tor_required':networkMode,cloudTextGeneration:false,anonymous:false,note:networkMode==='tor'?'Tor obrigatório para pesquisas; sem conexão direta alternativa. Anonimato não é garantido.':'Pesquisas diretas revelam IP e consulta aos serviços utilizados.'});
+    if(req.method==='GET' && req.url==='/api/core/capabilities')return reply(200,{agents:verisCore.capabilities});
+    const agentRoute=/^\/api\/core\/agents\/(sense|mind|memory|planner|research|vision|voice|code|cyber|action|guard|verify)\/tasks$/.exec(req.url);
+    if(req.method==='POST' && (agentRoute || req.url==='/api/cyber')){
+      let body='';try{
+        for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>20000)return reply(413,{error:'payload_too_large'});}
+        const input=JSON.parse(body);if(!input||typeof input!=='object'||Array.isArray(input))return reply(400,{error:'invalid_agent_input'});
+        if(agentRoute)return reply(202,verisCore.submitAgent(agentRoute[1],input));
+        const {operation,project,permissionId,jobId,baselineId}=input;
+        return reply(200,await verisCore.cyberOperation({operation,project,permissionId,jobId,baselineId}));
+      }catch(error){return reply(error.message==='task_queue_full'?429:400,{error:error.message==='task_queue_full'?'task_queue_full':'invalid_agent_input'});}
+    }
     if(req.method==='GET' && req.url==='/api/core/queue')return reply(200,verisCore.queueStats);
     const taskRoute=/^\/api\/core\/tasks\/([a-f0-9-]{36})(\/cancel)?$/.exec(req.url);
     if(taskRoute && req.method==='GET' && !taskRoute[2]){

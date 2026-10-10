@@ -3,6 +3,7 @@
 import { analyzeProject, prepareChanges, applyApprovedProposal } from './index.js';
 import { readProject } from './project-reader.js';
 import { createNativeCodeEngine } from './native-engine.js';
+import { inventoryDependencies } from '../cyber/dependencies.js';
 import { auditSource } from './security.js';
 import { authorizeCodeTask } from './permissions.js';
 export function createCodeService({ trustedProjects = {}, generateChanges = createNativeCodeEngine(), verifyApproval = null, stageChanges = null, runChecks = null, createReview = null, resolveTaskPermission = null } = {}) {
@@ -16,8 +17,8 @@ export function createCodeService({ trustedProjects = {}, generateChanges = crea
     const policy = await resolveTaskPermission(taskId);
     return authorizeCodeTask(policy,request);
   }
-  async function readScoped(project, taskId, operation) {
-    return readProject(select(project), { authorizePath: async path =>
+  async function readScoped(project, taskId, operation, options={}) {
+    return readProject(select(project), { signal:options.signal, authorizePath: async path =>
       (await requireScope(taskId, {operation, project, paths: [path]})).allowed === true });
   }
   return {
@@ -27,11 +28,11 @@ export function createCodeService({ trustedProjects = {}, generateChanges = crea
       const { files, truncated, totalBytes } = await readScoped(project, taskId, 'inspect');
       return { ...analyzeProject(files), project, truncated, totalBytes };
     },
-    async securityAudit(project, taskId) {
+    async securityAudit(project, taskId, options={}) {
       const permission = await requireScope(taskId,{operation:'security-audit',project,paths:[]});
       if (!permission.allowed) return {status:permission.reason,executed:false};
-      const { files, truncated } = await readScoped(project, taskId, 'security-audit');
-      return { ...auditSource(files), project, truncated };
+      const { files, truncated,totalBytes } = await readScoped(project, taskId, 'security-audit',options);
+      return { ...auditSource(files), project, truncated,totalBytes,scannedFiles:files.length,scannedPaths:files.map(f=>f.path),dependencies:inventoryDependencies(files) };
     },
     async propose(project, instruction, options = {}, taskId) {
       const permission = await requireScope(taskId,{operation:'propose',project,paths:[]});
