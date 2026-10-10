@@ -19,3 +19,25 @@ Os arquivos `index.test.js` e `service.test.js` verificam controles e fluxos loc
 - Análise não implica permissão de execução.
 - O CORE deve controlar o serviço; nunca expor os adaptadores diretamente a entrada não confiável.
 - Revisão e merge são decisões humanas.
+
+## Motor local de programação — Ollama
+
+O motor `local-model.js` é um adaptador real para a API local do Ollama (HTTP loopback apenas). **Não treina nem implementa um LLM próprio**: utiliza pesos de um modelo de programação que o usuário precisa instalar. Não usa Groq nem ChatGPT como serviço remoto. Exemplo de instalação: `ollama pull qwen2.5-coder:7b` (modelo pode exigir memória/RAM significativa). Inicie o Ollama antes de usar.
+
+Integração na aplicação hospedeira:
+
+```js
+import { VerisCore } from './core/src/index.js';
+import { createCodeService } from './agents/code/service.js';
+import { createLocalCodeModel } from './agents/code/local-model.js';
+const codeService = createCodeService({
+  trustedProjects: { demo: '/caminho/permitido/do/projeto' },
+  generateChanges: createLocalCodeModel({ model: 'qwen2.5-coder:7b' })
+});
+const core = new VerisCore({ codeService });
+const result = await core.codeOperation({ operation: 'propose', project: 'demo', instruction: 'Melhore a validação de entradas' });
+```
+
+A proposta não altera arquivos. O sistema exige hashes corretos e limites. Para permitir staging, testes ou revisão no GitHub, ainda faltam adaptadores confiáveis e autorização real. Não enviar projetos sensíveis a servidores externos. **O motor não está conectado automaticamente ao servidor principal**; deve ser configurado explicitamente pelo host.
+
+Testes: `cd veris-cyber && npm test`. Os testes usam um servidor simulado e não provam que o Ollama/modelo está instalado ou responde corretamente.
