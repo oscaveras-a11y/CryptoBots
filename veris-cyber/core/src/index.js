@@ -137,6 +137,7 @@ export class VerisCore {
   async #call(name, input, task) {
     const handler = this.#handlers.get(name);
     if (!handler) return { status: 'unavailable', agent: name };
+    const started = Date.now();
     const controller = new AbortController();
     // Local speech engines can take longer than conversational agents on CPU.
     const timer = setTimeout(() => controller.abort(), name === 'voice' ? 120000 : name==='mind' && this.#mindResponder ? 65000 : name==='research' ? 30000 : TIMEOUT_MS);
@@ -146,9 +147,9 @@ export class VerisCore {
         new Promise((_, reject) => controller.signal.addEventListener('abort', () => reject(new Error('agent_timeout')), { once: true }))
       ]);
       if (result === undefined) throw new Error('empty_agent_response');
-      return { status: 'ok', agent: name, result };
+      return { status: 'ok', agent: name, result, durationMs: Date.now()-started, attempts: 1 };
     } catch (error) {
-      return { status: 'error', agent: name, error: errorText(error) };
+      return { status: 'error', agent: name, error: errorText(error), durationMs: Date.now()-started, attempts: 1 };
     } finally { clearTimeout(timer); }
   }
   async run({ message, scope = '', authorized = false, mode = 'auto', data = {} } = {}) {
@@ -156,7 +157,7 @@ export class VerisCore {
     if (typeof scope !== 'string' || scope.length > 1000 || typeof authorized !== 'boolean') throw new TypeError('invalid_scope');
     if (!['auto','informational'].includes(mode) || data === null || typeof data !== 'object' || Array.isArray(data)) throw new TypeError('invalid_options');
     const task = { id: randomUUID(), message, scope, status: 'running', trace: [], createdAt: new Date().toISOString(), completedAt: null };
-    const record = (name, response) => { task.trace.push({ agent: name, status: response.status }); return response; };
+    const record = (name, response) => { task.trace.push({ agent: name, status: response.status, durationMs: response.durationMs ?? null, attempts: response.attempts ?? 1 }); return response; };
     try {
       // The existing deterministic orchestrator provides a safe baseline when specialized agents are not connected.
       const baseline = orchestrate({ message, scope, authorized });
@@ -168,6 +169,13 @@ export class VerisCore {
         baseline.mode === 'question' || baseline.mode === 'memory_fast_path' ? 'question' : 'task';
       const routedData = { ...data, requestedAgent: data.requestedAgent ?? sense.result?.requestedAgent };
       const memory = record('memory', await this.#call('memory', { message, intent, data: routedData }, task));
+      // Experience retrieval is advisory, scoped to the explicitly named project.
+      if (typeof scope === 'string' && scope.trim() && typeof routedData.project === 'string' && routedData.project.trim()) {
+        try {
+          const experiences = await this.recallExperiences({ scope, project: routedData.project, limit: 5 });
+          task.experienceContext = Array.isArray(experiences) ? experiences.filter(item => item?.verified === true).slice(0, 5) : [];
+        } catch (error) { task.memoryWarning = errorText(error); task.experienceContext = []; }
+      }
       if (intent === 'question' && memory.status === 'ok' && memory.result?.verified === true && typeof memory.result.answer === 'string') {
         task.answer = memory.result.answer;
         task.status = 'answered';
@@ -200,6 +208,7 @@ export class VerisCore {
         }
         // Planning and response generation are independent for informational tasks.
         const informationalPlan = intent === 'task' && mode === 'informational';
+        if (informationalPlan && task.experienceContext?.length) routedData.priorVerifiedExperiences = task.experienceContext.map(x=>({summary:x.summary,outcome:x.outcome}));
         const [mindResponse, plannerResponse] = await Promise.all([
           this.#call('mind', { message, intent, data: routedData }, task),
           informationalPlan ? this.#call('planner', { message, scope, data: routedData }, task) : Promise.resolve(null)
