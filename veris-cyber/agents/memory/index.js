@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rename, unlink } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
@@ -25,7 +25,7 @@ async function save(value) {
     await writeFile(temp, JSON.stringify(value, null, 2), { mode: 0o600, flag: 'wx' });
     await rename(temp, dbPath);
   } catch (error) {
-    await import('node:fs/promises').then(fs => fs.unlink(temp).catch(() => {}));
+    await unlink(temp).catch(() => {});
     throw error;
   }
 }
