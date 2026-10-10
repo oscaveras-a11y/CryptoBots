@@ -1,7 +1,4 @@
 import { runIsolatedNodeTests } from './isolated-runner.js';
-import { createRequire } from 'node:module';
-const require=createRequire(import.meta.url);
-const { parseArgs }=require('node:util');
 
 // Executes a proposed Node.js test suite in Docker, never on the host.
 export async function checkNodeProposal({proposal,files=[]}={}) {
