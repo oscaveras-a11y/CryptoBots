@@ -32,7 +32,8 @@ export class VerisCore {
   #audioTranscriber;
   #speechSynthesizer;
   #codeService;
-  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchMultipleSources, visionAnalyzer = null, audioTranscriber = null, speechSynthesizer = null, codeService = null } = {}) {
+  #mindResponder;
+  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchMultipleSources, visionAnalyzer = null, audioTranscriber = null, speechSynthesizer = null, codeService = null, mindResponder=null } = {}) {
     if (!Number.isInteger(maxHistory) || maxHistory < 1 || maxHistory > 1000) throw new TypeError('invalid_max_history');
     this.#maxHistory = maxHistory;
     this.#queue = new TaskQueue({ concurrency, maxPending, maxCompleted:maxHistory });
@@ -46,6 +47,8 @@ export class VerisCore {
     this.#speechSynthesizer = speechSynthesizer;
     if (codeService !== null && (typeof codeService !== 'object' || typeof codeService.inspect !== 'function')) throw new TypeError('invalid_code_service');
     this.#codeService = codeService;
+    if(mindResponder!==null && typeof mindResponder!=='function')throw new TypeError('invalid_mind_responder');
+    this.#mindResponder=mindResponder;
     this.register('sense', senseAgent);
     this.register('mind', mindAgent);
     this.register('memory', memoryAgent);
@@ -107,10 +110,10 @@ export class VerisCore {
     if (!handler) return { status: 'unavailable', agent: name };
     const controller = new AbortController();
     // Local speech engines can take longer than conversational agents on CPU.
-    const timer = setTimeout(() => controller.abort(), name === 'voice' ? 120000 : TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), name === 'voice' ? 120000 : name==='mind' && this.#mindResponder ? 65000 : name==='research' ? 30000 : TIMEOUT_MS);
     try {
       const result = await Promise.race([
-        Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id, ...(name === 'code' && this.#codeService ? {codeOperation: data => this.codeOperation(data)} : {}), ...(name === 'guard' && typeof this.#codeService?.authorize === 'function' ? {checkCodePermission: request => this.#codeService.authorize(request)} : {}), ...(name === 'research' ? { retrieve: this.#researchRetriever } : {}), ...(name === 'vision' && this.#visionAnalyzer ? { analyzeImages: this.#visionAnalyzer } : {}), ...(name === 'voice' && this.#audioTranscriber ? { transcribeAudio: this.#audioTranscriber } : {}), ...(name === 'voice' && this.#speechSynthesizer ? { synthesizeSpeech: this.#speechSynthesizer } : {}) })),
+        Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id, ...(name === 'mind' && this.#mindResponder ? {generateText:this.#mindResponder} : {}), ...(name === 'code' && this.#codeService ? {codeOperation: data => this.codeOperation(data)} : {}), ...(name === 'guard' && typeof this.#codeService?.authorize === 'function' ? {checkCodePermission: request => this.#codeService.authorize(request)} : {}), ...(name === 'research' ? { retrieve: this.#researchRetriever } : {}), ...(name === 'vision' && this.#visionAnalyzer ? { analyzeImages: this.#visionAnalyzer } : {}), ...(name === 'voice' && this.#audioTranscriber ? { transcribeAudio: this.#audioTranscriber } : {}), ...(name === 'voice' && this.#speechSynthesizer ? { synthesizeSpeech: this.#speechSynthesizer } : {}) })),
         new Promise((_, reject) => controller.signal.addEventListener('abort', () => reject(new Error('agent_timeout')), { once: true }))
       ]);
       if (result === undefined) throw new Error('empty_agent_response');

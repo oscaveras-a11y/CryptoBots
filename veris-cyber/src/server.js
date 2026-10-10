@@ -12,10 +12,16 @@ import { orchestrate } from './orchestrator.js';
 import { VerisCore } from '../core/src/index.js';
 import { connectAgents } from '../core/src/connect-agents.js';
 import { createLocalCodeService } from '../agents/code/local-service.js';
+import { createLocalModel } from './local-model.js';
+import { createTorFetch } from './tor-fetch.js';
+import { searchMultipleSources } from '../agents/research/multi-source.js';
 
-export function createServer({ token = process.env.CYBER_API_TOKEN, codeConfig = null } = {}) {
+export function createServer({ token = process.env.CYBER_API_TOKEN, codeConfig = null, networkMode='tor', languageModel=null } = {}) {
   const authorize = createAccessGuard(token);
-  const verisCore = connectAgents(new VerisCore({codeService:codeConfig ? createLocalCodeService(codeConfig) : null}));
+  if(!['offline','restricted','tor'].includes(networkMode))throw new TypeError('invalid_network_mode');
+  const localModel=languageModel ? createLocalModel(languageModel) : null;
+  const researchRetriever=networkMode==='offline'?async()=>{throw new Error('external_research_disabled');}:networkMode==='tor'?(query,options)=>searchMultipleSources(query,{...options,fetchImpl:createTorFetch()}):searchMultipleSources;
+  const verisCore = connectAgents(new VerisCore({codeService:codeConfig ? createLocalCodeService(codeConfig) : null,mindResponder:localModel,researchRetriever}));
   const server = http.createServer(async (req, res) => {
     const reply = (status, data) => {
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
@@ -33,6 +39,7 @@ export function createServer({ token = process.env.CYBER_API_TOKEN, codeConfig =
       if (denied) return reply(denied.status, {error: denied.error});
     }
     if (req.method === 'GET' && req.url === '/api/core/agents') return reply(200, { agents: verisCore.agents });
+    if(req.method==='GET' && req.url==='/api/privacy')return reply(200,{networkMode,localTextGeneration:!!localModel,externalResearch:networkMode!=='offline',researchTransport:networkMode==='tor'?'tor_required':networkMode,cloudTextGeneration:false,anonymous:false,note:networkMode==='tor'?'Tor obrigatório para pesquisas; sem conexão direta alternativa. Anonimato não é garantido.':'Pesquisas diretas revelam IP e consulta aos serviços utilizados.'});
     if(req.method==='GET' && req.url==='/api/core/queue')return reply(200,verisCore.queueStats);
     const taskRoute=/^\/api\/core\/tasks\/([a-f0-9-]{36})(\/cancel)?$/.exec(req.url);
     if(taskRoute && req.method==='GET' && !taskRoute[2]){
@@ -111,7 +118,8 @@ export function createServer({ token = process.env.CYBER_API_TOKEN, codeConfig =
         }
         const input = JSON.parse(body);
         if (req.url === '/api/assistant/plan') return reply(200, planTask(input.message));
-        return reply(200, await reason({ message: input.message, context: input.context }));
+        if(!localModel)return reply(200,{status:'local_model_not_configured',reply:'Configure o modelo local do MIND. Nenhum pedido foi enviado a um provedor externo.'});
+        return reply(200, await localModel({ message: input.message }));
       } catch { return reply(400, { error: 'invalid_assistant_request' }); }
     }
     if (req.method === 'POST' && req.url === '/api/engine/analyze') {
@@ -168,7 +176,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     const token = process.env.CYBER_API_TOKEN || readFileSync(new URL('../config/api-token', import.meta.url), 'utf8').trim();
     const config=fileURLToPath(new URL('../config/projects.json',import.meta.url));
     const codeConfig=existsSync(config)?{config,authorityFile:fileURLToPath(new URL('../config/code-authority.json',import.meta.url)),workspaceStorage:fileURLToPath(new URL('../workspaces/',import.meta.url))}:null;
-    createServer({token,codeConfig}).listen(port, '127.0.0.1', () => console.log('VERIS CYBER local API listening on 127.0.0.1:' + port));
+    const languageModel=process.env.JARVIS_LOCAL_MODEL_ENDPOINT ? {endpoint:process.env.JARVIS_LOCAL_MODEL_ENDPOINT,model:process.env.JARVIS_LOCAL_MODEL_NAME||'jarvis-local'} : null;
+    createServer({token,codeConfig,languageModel,networkMode:process.env.JARVIS_NETWORK_MODE||'tor'}).listen(port, '127.0.0.1', () => console.log('VERIS CYBER local API listening on 127.0.0.1:' + port));
   } catch {
     console.error('Verifique o acesso (npm run setup) e a configuração local de projetos antes de iniciar.');
     process.exitCode = 1;
