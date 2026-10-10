@@ -29,7 +29,7 @@ test('routes through guard planner action verify', async () => {
   const core = new VerisCore({ handlers: {
     guard: () => ({ allowed: true, allowExecution: true }),
     planner: () => ({ steps: [{ agent: 'action', instruction: 'run approved mock' }] }),
-    action: () => ({ done: true }),
+    action: () => ({ done: true, executed: true, verified: true }),
     verify: ({ steps }) => ({ verified: steps.length === 1 && steps[0].status === 'ok' })
   } });
   const task = await core.run({ message: 'Execute tarefa simulada', authorized: true, scope: 'lab' });
@@ -60,3 +60,4 @@ test('main engine returns a useful informational plan through MIND and PLANNER',
   assert.equal(task.verified,false);
   assert.match(task.answer,/code/i);
 });
+

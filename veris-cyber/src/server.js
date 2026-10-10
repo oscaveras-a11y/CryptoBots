@@ -11,6 +11,7 @@ import { createReasoningSession, addEvidence, nextReasoningStep } from './native
 import { orchestrate } from './orchestrator.js';
 import { VerisCore } from '../core/src/index.js';
 import { connectAgents } from '../core/src/connect-agents.js';
+import { createLocalActionService } from '../agents/action/local-service.js';
 import { createLocalCodeService } from '../agents/code/local-service.js';
 import { loadLocalModelConfig } from './local-runtime.js';
 import { createLocalModel } from './local-model.js';
@@ -22,7 +23,8 @@ export function createServer({ token = process.env.CYBER_API_TOKEN, codeConfig =
   if(!['offline','restricted','tor'].includes(networkMode))throw new TypeError('invalid_network_mode');
   const localModel=languageModel ? createLocalModel(languageModel) : null;
   const researchRetriever=networkMode==='offline'?async()=>{throw new Error('external_research_disabled');}:networkMode==='tor'?(query,options)=>searchMultipleSources(query,{...options,fetchImpl:createTorFetch()}):searchMultipleSources;
-  const verisCore = connectAgents(new VerisCore({codeService:codeConfig ? createLocalCodeService(codeConfig) : null,mindResponder:localModel,researchRetriever}));
+  const actionService=codeConfig?createLocalActionService(codeConfig):null;
+  const verisCore = connectAgents(new VerisCore({actionExecutor:actionService?.execute??null,actionAuthorizer:actionService?.authorize??null,codeService:codeConfig ? createLocalCodeService(codeConfig) : null,mindResponder:localModel,researchRetriever}));
   const server = http.createServer(async (req, res) => {
     const reply = (status, data) => {
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
@@ -67,6 +69,15 @@ export function createServer({ token = process.env.CYBER_API_TOKEN, codeConfig =
         const request=JSON.parse(body);if(typeof request.message!=='string'||!request.message.trim()||request.message.length>4000)return reply(400,{error:'message_required'});
         return reply(202,verisCore.submit(request));
       }catch(error){return reply(error.message==='task_queue_full'?429:400,{error:error.message==='task_queue_full'?'task_queue_full':'invalid_task_request'});}
+    }
+    if(req.method==='POST' && req.url==='/api/action'){
+      let body='';try{
+        for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>30000)return reply(413,{error:'payload_too_large'});}
+        const input=JSON.parse(body);if(!input||typeof input!=='object'||Array.isArray(input))return reply(400,{error:'invalid_action_request'});
+        const {tool,project,permissionId,path,content}=input;
+        const response=await verisCore.invokeAgent('action',{instruction:'Ferramenta explícita do proprietário',data:{tool,project,permissionId,path,content}});
+        return reply(200,response.result??{status:response.status,reason:response.reason??response.error,executed:false});
+      }catch{return reply(400,{error:'invalid_action_request'});}
     }
     if (req.method === 'POST' && req.url === '/api/code') {
       let body = '';

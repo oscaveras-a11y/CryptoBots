@@ -2,7 +2,7 @@
 import {readFileSync,writeFileSync,mkdirSync,renameSync,openSync,closeSync,unlinkSync,lstatSync} from 'node:fs';
 import {dirname,resolve} from 'node:path';
 import {randomUUID} from 'node:crypto';
-const operations=new Set(['inspect','security-audit','propose','stage','test','review','rollback','describe']);
+const operations=new Set(['action-read','action-create','inspect','security-audit','propose','stage','test','review','rollback','describe']);
 const text=x=>typeof x==='string' && x.trim().length>0 && x.length<=260;
 const list=x=>Array.isArray(x) && x.length<=200 && x.every(text);
 const identity=x=>text(x.actor) && text(x.project) && Number.isFinite(x.expiresAt);
@@ -28,6 +28,11 @@ export function createCodeAuthority({file,clock=()=>Date.now()}={}) {
   const event=(data,action,id,actor)=>data.audit.push({action,id,actor,at:clock()});
   const active=x=>x && !x.revoked && !x.consumed && clock()<x.expiresAt;
   return {
+    recordExecution({permissionId,project,tool,path,status,executed}={}){
+      if(![permissionId,project,tool,status].every(text)||(path!==undefined&&!text(path))||typeof executed!=='boolean')throw new TypeError('invalid_execution_event');
+      return mutate(data=>{const policy=Object.hasOwn(data.grants,permissionId)?data.grants[permissionId]:null;if(!policy||policy.project!==project)return false;
+        data.audit.push({action:'tool_execution',id:permissionId,actor:policy.actor,project,tool,...(path?{path}:{}),status,executed,at:clock()});return true;});
+    },
     grant(policy={}){
       if(!identity(policy)||policy.expiresAt<=clock()||policy.expiresAt>clock()+86400000||!list(policy.operations)||!policy.operations.length||policy.operations.some(x=>!operations.has(x))||!list(policy.allowPaths)||!policy.allowPaths.length||!list(policy.denyPaths))throw new TypeError('invalid_grant');
       return mutate(data=>{const id=randomUUID();data.grants[id]={...structuredClone(policy),confirmed:true};event(data,'grant',id,policy.actor);return id;});

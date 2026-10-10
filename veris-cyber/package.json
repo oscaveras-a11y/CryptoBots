@@ -9,7 +9,9 @@
     "setup": "node scripts/setup.js",
     "code-access": "node scripts/code-access.js",
     "model:start": "node scripts/start-local-model.js",
-    "chat": "node scripts/chat-local.js"
+    "chat": "node scripts/chat-local.js",
+    "action": "node scripts/action-local.js",
+    "action-access": "node scripts/code-access.js"
   },
   "engines": {
     "node": ">=20"

@@ -142,7 +142,7 @@ export class VerisCore {
     const timer = setTimeout(() => controller.abort(), name === 'voice' ? 120000 : name==='mind' && this.#mindResponder ? 65000 : name==='research' ? 30000 : TIMEOUT_MS);
     try {
       const result = await Promise.race([
-        Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id, ...(name === 'mind' && this.#mindResponder ? {generateText:this.#mindResponder} : {}), ...(name === 'cyber' && this.#cyberService ? {cyberOperation:data=>this.cyberOperation(data)} : {}), ...(name==='action' && this.#actionExecutor ? {executeAction:async(request,options)=>{const check=await this.#actionAuthorizer?.(request.data);return check?.allowed===true?this.#actionExecutor(request,options):{status:'blocked',reason:'action_not_authorized',executed:false};}} : {}), ...(name === 'code' && this.#codeService ? {codeOperation: data => this.codeOperation(data)} : {}), ...(name === 'guard' && typeof this.#codeService?.authorize === 'function' ? {checkCodePermission: request => this.#codeService.authorize(request)} : {}), ...(name === 'research' ? { retrieve: this.#researchRetriever } : {}), ...(name === 'vision' && this.#visionAnalyzer ? { analyzeImages: this.#visionAnalyzer } : {}), ...(name === 'voice' && this.#audioTranscriber ? { transcribeAudio: this.#audioTranscriber } : {}), ...(name === 'voice' && this.#speechSynthesizer ? { synthesizeSpeech: this.#speechSynthesizer } : {}) })),
+        Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id, ...(name === 'mind' && this.#mindResponder ? {generateText:this.#mindResponder} : {}), ...(name === 'cyber' && this.#cyberService ? {cyberOperation:data=>this.cyberOperation(data)} : {}), ...(name==='action' && this.#actionExecutor ? {executeAction:async(request,options)=>{const check=await this.#actionAuthorizer?.(request.data);return check?.allowed===true?this.#actionExecutor(request,options):{status:'blocked',reason:'action_not_authorized',executed:false};}} : {}), ...(name === 'code' && this.#codeService ? {codeOperation: data => this.codeOperation(data)} : {}), ...(name === 'guard' && this.#actionAuthorizer ? {checkActionPermission:this.#actionAuthorizer} : {}), ...(name === 'guard' && typeof this.#codeService?.authorize === 'function' ? {checkCodePermission: request => this.#codeService.authorize(request)} : {}), ...(name === 'research' ? { retrieve: this.#researchRetriever } : {}), ...(name === 'vision' && this.#visionAnalyzer ? { analyzeImages: this.#visionAnalyzer } : {}), ...(name === 'voice' && this.#audioTranscriber ? { transcribeAudio: this.#audioTranscriber } : {}), ...(name === 'voice' && this.#speechSynthesizer ? { synthesizeSpeech: this.#speechSynthesizer } : {}) })),
         new Promise((_, reject) => controller.signal.addEventListener('abort', () => reject(new Error('agent_timeout')), { once: true }))
       ]);
       if (result === undefined) throw new Error('empty_agent_response');
@@ -231,6 +231,12 @@ export class VerisCore {
         }
         const response = record(step.agent, await this.#call(step.agent, { instruction: step.instruction, scope, data: routedData }, task));
         task.steps.push({ agent: step.agent, ...response });
+        if(step.agent==='action' && response.status==='ok'){
+          const result=response.result;task.action=result;task.executed=result.executed===true;task.verified=result.verified===true&&task.executed;
+          task.status=task.verified?'completed':result.status==='blocked'?'blocked':'unverified';
+          task.answer=result.status==='note_created'?'Nota criada no projeto autorizado.':result.status==='file_read'?'Arquivo lido.':result.status==='files_listed'?'Arquivos permitidos listados.':'A ferramenta não confirmou a conclusão da tarefa.';
+          return task;
+        }
         if(step.agent==='code' && response.status==='ok' && this.#codeService && typeof routedData.project==='string'){
           const result=response.result;
           task.executed=result.executed===true;task.verified=false;
