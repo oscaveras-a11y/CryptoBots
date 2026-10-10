@@ -86,6 +86,7 @@ export class VerisCore {
   async codeOperation({ operation, project, instruction, proposal, approval, reviewReference, options } = {}) {
     if (!this.#codeService) return { status: 'requires_code_service', executed: false };
     if (operation === 'inspect') return this.#codeService.inspect(project);
+    if (operation === 'security-audit') return this.#codeService.securityAudit(project);
     if (operation === 'propose') return this.#codeService.propose(project, instruction, options);
     if (operation === 'stage') return this.#codeService.stage(project, proposal, approval);
     if (operation === 'test') return this.#codeService.test(project, reviewReference, approval);
