@@ -29,6 +29,9 @@ export function createLocalModel({endpoint,model='jarvis-local',apiKey=null,fetc
             text+=decoder.decode(value,{stream:true});
           }
           text+=decoder.decode();
+        }catch(error){
+          await reader.cancel().catch(()=>{});
+          throw error;
         }finally{
           reader.releaseLock();
         }
