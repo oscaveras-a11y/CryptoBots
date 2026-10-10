@@ -282,6 +282,7 @@ export class VerisCore {
         if (suggestion.status !== 'ok' || !Array.isArray(suggestion.result?.steps) || !suggestion.result.steps.length) return false;
         try {
           const alternative = validatePlan(suggestion.result.steps);
+          if (alternative.length === validatedSteps.length && alternative.every((s, i) => s.agent === validatedSteps[i].agent && s.instruction === validatedSteps[i].instruction)) return false;
           task.replan = { status: 'awaiting_review', reason: 'read_only_step_failed', failedStepId: failedStep.id,
             steps: alternative, waves: planWaves(alternative, 3), automaticExecution: false };
           task.status = 'replan_proposed';
