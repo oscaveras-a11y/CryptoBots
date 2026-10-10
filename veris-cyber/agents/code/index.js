@@ -1,6 +1,7 @@
 // CODE: project inspection, evidence-backed findings, proposals and explicitly gated changes.
 // No filesystem, shell, network or GitHub write capability is granted by default.
 import { createHash } from 'node:crypto';
+import { verifyCodeChange } from './verification.js';
 import { extname, posix } from 'node:path';
 
 const MAX_FILES = 200, MAX_BYTES = 300_000;
@@ -76,6 +77,7 @@ export default async function code({ instruction = '', data = {} } = {}, context
   if (context.signal?.aborted) throw new Error('code_aborted');
   if(typeof context.codeOperation==='function' && typeof data.project==='string')return context.codeOperation({...data,instruction});
   const operation = data.operation ?? 'inspect';
+  if (operation === 'verify') return verifyCodeChange(data);
   if (operation === 'inspect') {
     if (!Array.isArray(data.files)) return { status: 'requires_project_files', instruction, executed: false };
     return analyzeProject(data.files);
