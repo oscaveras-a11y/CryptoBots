@@ -2,6 +2,7 @@
 // No filesystem, shell, network or GitHub write capability is granted by default.
 import { createHash } from 'node:crypto';
 import { verifyCodeChange } from './verification.js';
+import { getCodeKnowledge } from './knowledge.js';
 import { mapArchitecture, rankSolutions, diagnoseFailures, planRefactor } from './intelligence.js';
 import { extname, posix } from 'node:path';
 
@@ -78,6 +79,7 @@ export default async function code({ instruction = '', data = {} } = {}, context
   if (context.signal?.aborted) throw new Error('code_aborted');
   if(typeof context.codeOperation==='function' && typeof data.project==='string')return context.codeOperation({...data,instruction});
   const operation = data.operation ?? 'inspect';
+  if (operation === 'knowledge') return getCodeKnowledge({topic:data.topic ?? instruction,limit:data.limit ?? 5});
   if (operation === 'architecture') return mapArchitecture(data.files);
   if (operation === 'reason') return rankSolutions(data.options);
   if (operation === 'debug') return diagnoseFailures(data.diagnostics);
