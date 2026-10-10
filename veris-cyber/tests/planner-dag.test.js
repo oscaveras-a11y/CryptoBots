@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import planner, { validatePlan, planWaves } from '../agents/planner/index.js';
+import planner, { validatePlan, planWaves, analyzePlan } from '../agents/planner/index.js';
 
 test('dependency waves schedule independent work together', () => {
   const steps = validatePlan([
@@ -24,4 +24,16 @@ test('multi-agent planning requires explicit confirmation', () => {
 test('cyber steps never bypass explicit scope', () => {
   const result=planner({message:'Check',data:{requestedAgent:'research',allowMultiAgentPlan:true,planSteps:[{agent:'cyber',instruction:'Check'}]}});
   assert.equal(result.reason,'explicit_pentest_scope_required');
+});
+
+test('analyzes critical dependency depth and execution risk', () => {
+  const analysis = analyzePlan([
+    {id:'r',agent:'research',instruction:'Research'},
+    {id:'v',agent:'vision',instruction:'Inspect'},
+    {id:'a',agent:'action',instruction:'Apply',dependsOn:['r','v']}
+  ]);
+  assert.equal(analysis.criticalDepth,2);
+  assert.equal(analysis.maxParallelWidth,2);
+  assert.equal(analysis.containsExecution,true);
+  assert.deepEqual(analysis.criticalSteps,['a']);
 });
