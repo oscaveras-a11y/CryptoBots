@@ -2,7 +2,8 @@
 // Nothing in this module writes files, executes commands or talks to GitHub.
 import { analyzeProject, prepareChanges, applyApprovedProposal } from './index.js';
 import { readProject } from './project-reader.js';
-export function createCodeService({ trustedProjects = {}, generateChanges = null, verifyApproval = null, stageChanges = null, runChecks = null, createReview = null } = {}) {
+import { createNativeCodeEngine } from './native-engine.js';
+export function createCodeService({ trustedProjects = {}, generateChanges = createNativeCodeEngine(), verifyApproval = null, stageChanges = null, runChecks = null, createReview = null } = {}) {
   const projects = new Map(Object.entries(trustedProjects));
   const select = name => {
     if (typeof name !== 'string' || !projects.has(name)) throw new Error('project_not_registered');
@@ -13,12 +14,13 @@ export function createCodeService({ trustedProjects = {}, generateChanges = null
       const { files, truncated, totalBytes } = await readProject(select(project));
       return { ...analyzeProject(files), project, truncated, totalBytes };
     },
-    async propose(project, instruction) {
+    async propose(project, instruction, options = {}) {
       if (typeof generateChanges !== 'function') return { status: 'requires_code_model_adapter', executed: false };
       if (typeof instruction !== 'string' || !instruction.trim() || instruction.length > 4000) throw new TypeError('invalid_instruction');
       const { files, truncated } = await readProject(select(project));
       if (truncated) return { status: 'project_context_incomplete', executed: false };
-      const changes = await generateChanges({ project, instruction, files: files.map(f => ({ ...f })) });
+      const changes = await generateChanges({ project, instruction, files: files.map(f => ({ ...f })), options });
+      if (!changes.length) return { status: 'no_changes_needed', executed: false, project };
       const proposal = prepareChanges(files, changes);
       return { ...proposal, project };
     },
