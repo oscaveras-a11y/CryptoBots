@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto';
 import { verifyCodeChange } from './verification.js';
 import { getCodeKnowledge } from './knowledge.js';
+import { engineeringBrief } from './engineering.js';
 import { mapArchitecture, rankSolutions, diagnoseFailures, planRefactor } from './intelligence.js';
 import { extname, posix } from 'node:path';
 
@@ -79,6 +80,7 @@ export default async function code({ instruction = '', data = {} } = {}, context
   if (context.signal?.aborted) throw new Error('code_aborted');
   if(typeof context.codeOperation==='function' && typeof data.project==='string')return context.codeOperation({...data,instruction});
   const operation = data.operation ?? 'inspect';
+  if (operation === 'engineering') return engineeringBrief({instruction:data.topic ?? instruction,files:data.files ?? [],diagnostics:data.diagnostics ?? [],limit:data.limit ?? 5});
   if (operation === 'knowledge') return getCodeKnowledge({topic:data.topic ?? instruction,limit:data.limit ?? 5});
   if (operation === 'architecture') return mapArchitecture(data.files);
   if (operation === 'reason') return rankSolutions(data.options);
