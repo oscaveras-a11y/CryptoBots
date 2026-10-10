@@ -1,5 +1,5 @@
 // Trusted CODE task permissions: default deny. This module does not authenticate users.
-const OPERATIONS = new Set(['inspect','security-audit','propose','stage','test','review']);
+const OPERATIONS = new Set(['inspect','security-audit','propose','stage','test','review','describe','rollback']);
 const isList = value => Array.isArray(value) && value.every(x => typeof x === 'string' && x.length > 0 && x.length <= 260);
 function match(pattern, path) {
   return pattern === path || (pattern.endsWith('/**') && path.startsWith(pattern.slice(0,-3) + '/'));

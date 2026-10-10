@@ -74,6 +74,7 @@ export async function applyApprovedProposal(proposal, approval, adapters = {}) {
 }
 export default async function code({ instruction = '', data = {} } = {}, context = {}) {
   if (context.signal?.aborted) throw new Error('code_aborted');
+  if(typeof context.codeOperation==='function' && typeof data.project==='string')return context.codeOperation({...data,instruction});
   const operation = data.operation ?? 'inspect';
   if (operation === 'inspect') {
     if (!Array.isArray(data.files)) return { status: 'requires_project_files', instruction, executed: false };

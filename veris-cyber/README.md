@@ -17,6 +17,8 @@ npm start
 
 API local em `http://127.0.0.1:3200` (configurável por `CYBER_PORT`).
 
+Abra esse endereço para usar o painel JARVIS. Consulte [o guia do motor CORE](docs/CORE-LOCAL.md) para planos, operações CODE autorizadas e tarefas em fila.
+
 - `GET /health`: status.
 - `POST /api/audits`: registra uma auditoria demonstrativa, exigindo escopo e declaração de autorização; nenhum teste ativo é executado.
 
@@ -55,6 +57,8 @@ No Windows, os modos POSIX de arquivo não garantem uma ACL privada: mantenha a 
 
 A auditoria encontrou e corrigiu sintaxe/imports de testes, planejamento do MIND e acesso do CODE a arquivos negados pela permissão. O CODE confere o escopo antes de ler cada arquivo em inspeção, análise de segurança e propostas. O motor de programação continua próprio, determinístico e sem dependência de Ollama.
 
-Ainda faltam sandbox de sistema operacional, executor de projetos não confiáveis, permissões persistentes completas, cancelamento em execução, aplicação de patches/rollback, escrita GitHub pelo agente, voz com binários reais, visão com mecanismo real, interface e modelo de linguagem próprio. A API de conversa com Groq continua uma integração opcional de texto; não é o motor CODE.
+O CODE agora oferece permissões persistentes emitidas por CLI local, API pelo CORE, cópias revisáveis dos arquivos alterados e rollback com detecção de conflitos. Consulte [o guia CODE local](docs/CODE-LOCAL.md) para configurar projetos e aprovações. O projeto de origem é preservado; a cópia não é uma sandbox nem um checkout Git completo.
+
+Ainda faltam sandbox de sistema operacional, executor de projetos não confiáveis, cancelamento em execução, escrita GitHub pelo agente, voz com binários reais, visão com mecanismo real, interface e modelo de linguagem próprio. A API de conversa com Groq continua uma integração opcional de texto; não é o motor CODE.
 
 Os testes de links simbólicos são separados: no Windows sem privilégio de symlink eles ficam explicitamente pendentes, enquanto exclusão de segredos/dependências é testada normalmente.

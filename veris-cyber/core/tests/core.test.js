@@ -46,3 +46,17 @@ test('does not claim success without verifier', async () => {
   const task = await core.run({ message: 'Execute tarefa simulada', authorized: true, scope: 'lab' });
   assert.equal(task.status, 'unverified');
 });
+
+test('main engine returns a useful informational plan through MIND and PLANNER',async()=>{
+  const core=new VerisCore();
+  const task=await core.run({message:'Corrija o codigo do meu programa',mode:'informational'});
+  assert.equal(task.status,'planned');
+  assert.equal(task.plan.steps[0].agent,'code');
+  assert.equal(task.plan.steps[0].instruction,'Corrija o codigo do meu programa');
+  assert.ok(task.plan.suggestedChecks.length>0);
+  assert.ok(task.trace.some(x=>x.agent==='mind'));
+  assert.ok(task.trace.some(x=>x.agent==='planner'));
+  assert.equal(task.executed,false);
+  assert.equal(task.verified,false);
+  assert.match(task.answer,/code/i);
+});

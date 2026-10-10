@@ -35,7 +35,7 @@ export class VerisCore {
   constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchMultipleSources, visionAnalyzer = null, audioTranscriber = null, speechSynthesizer = null, codeService = null } = {}) {
     if (!Number.isInteger(maxHistory) || maxHistory < 1 || maxHistory > 1000) throw new TypeError('invalid_max_history');
     this.#maxHistory = maxHistory;
-    this.#queue = new TaskQueue({ concurrency, maxPending });
+    this.#queue = new TaskQueue({ concurrency, maxPending, maxCompleted:maxHistory });
     if (typeof researchRetriever !== 'function') throw new TypeError('invalid_research_retriever');
     this.#researchRetriever = researchRetriever;
     if (visionAnalyzer !== null && typeof visionAnalyzer !== 'function') throw new TypeError('invalid_vision_analyzer');
@@ -83,12 +83,14 @@ export class VerisCore {
     return response.status === 'ok' ? response.result : { status: 'error', error: response.error };
   }
   // CODE access goes through CORE; host-owned adapters enforce project allowlists and approvals.
-  async codeOperation({ operation, project, instruction, proposal, approval, reviewReference, options, permissionId } = {}) {
+  async codeOperation({ operation, project, instruction, proposal, proposalId, approval, approvalId, reviewReference, options, permissionId } = {}) {
     if (!this.#codeService) return { status: 'requires_code_service', executed: false };
     if (operation === 'inspect') return this.#codeService.inspect(project, permissionId);
     if (operation === 'security-audit') return this.#codeService.securityAudit(project, permissionId);
     if (operation === 'propose') return this.#codeService.propose(project, instruction, options, permissionId);
-    if (operation === 'stage') return this.#codeService.stage(project, proposal, approval, permissionId);
+    if (operation === 'stage') return this.#codeService.stage(project, proposalId ?? proposal, approvalId ?? approval, permissionId);
+    if (operation === 'describe' && typeof this.#codeService.describe === 'function') return this.#codeService.describe(project, reviewReference, permissionId);
+    if (operation === 'rollback' && typeof this.#codeService.rollback === 'function') return this.#codeService.rollback(project, reviewReference, approvalId, permissionId);
     if (operation === 'test') return this.#codeService.test(project, reviewReference, approval, permissionId);
     if (operation === 'review') return this.#codeService.review(project, reviewReference, approval, permissionId);
     return { status: 'unsupported_code_operation', executed: false };
@@ -108,7 +110,7 @@ export class VerisCore {
     const timer = setTimeout(() => controller.abort(), name === 'voice' ? 120000 : TIMEOUT_MS);
     try {
       const result = await Promise.race([
-        Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id, ...(name === 'research' ? { retrieve: this.#researchRetriever } : {}), ...(name === 'vision' && this.#visionAnalyzer ? { analyzeImages: this.#visionAnalyzer } : {}), ...(name === 'voice' && this.#audioTranscriber ? { transcribeAudio: this.#audioTranscriber } : {}), ...(name === 'voice' && this.#speechSynthesizer ? { synthesizeSpeech: this.#speechSynthesizer } : {}) })),
+        Promise.resolve().then(() => handler(Object.freeze({ ...input }), { signal: controller.signal, taskId: task.id, ...(name === 'code' && this.#codeService ? {codeOperation: data => this.codeOperation(data)} : {}), ...(name === 'guard' && typeof this.#codeService?.authorize === 'function' ? {checkCodePermission: request => this.#codeService.authorize(request)} : {}), ...(name === 'research' ? { retrieve: this.#researchRetriever } : {}), ...(name === 'vision' && this.#visionAnalyzer ? { analyzeImages: this.#visionAnalyzer } : {}), ...(name === 'voice' && this.#audioTranscriber ? { transcribeAudio: this.#audioTranscriber } : {}), ...(name === 'voice' && this.#speechSynthesizer ? { synthesizeSpeech: this.#speechSynthesizer } : {}) })),
         new Promise((_, reject) => controller.signal.addEventListener('abort', () => reject(new Error('agent_timeout')), { once: true }))
       ]);
       if (result === undefined) throw new Error('empty_agent_response');
@@ -160,6 +162,14 @@ export class VerisCore {
           }
         }
         const mind = record('mind', await this.#call('mind', { message, intent, data: routedData }, task));
+        if (intent === 'task' && mode === 'informational') {
+          const planner=record('planner',await this.#call('planner',{message,scope,data:routedData},task));
+          const steps=planner.status==='ok' && Array.isArray(planner.result?.steps)?planner.result.steps:[];
+          task.plan={steps,suggestedChecks:mind.result?.next?.suggested_checks??[],requiresSelection:planner.result?.requiresSelection??true};
+          task.answer=steps.length?'Plano preparado para '+steps.map(s=>s.agent).join(', ')+'.\n'+steps.map((s,i)=>(i+1)+'. '+s.instruction).join('\n'):'Preciso identificar o agente e os detalhes do objetivo para preparar o plano.';
+          task.status=steps.length?'planned':'needs_plan_details';task.executed=false;task.verified=false;
+          return task;
+        }
         task.answer = mind.status === 'ok' && typeof mind.result?.answer === 'string' ? mind.result.answer :
           intent === 'question' ? baseline.answer : 'Posso conversar e ajudar a esclarecer seu pedido. Nenhuma ação foi executada.';
         task.status = 'answered';
@@ -189,6 +199,14 @@ export class VerisCore {
         }
         const response = record(step.agent, await this.#call(step.agent, { instruction: step.instruction, scope, data: routedData }, task));
         task.steps.push({ agent: step.agent, ...response });
+        if(step.agent==='code' && response.status==='ok' && this.#codeService && typeof routedData.project==='string'){
+          const result=response.result;
+          task.executed=result.executed===true;task.verified=false;
+          if(result.status==='proposal_ready'){task.proposal=result;task.status='awaiting_approval';task.answer='Proposta de código preparada. Revise os arquivos e aprove localmente antes de criar a cópia.';return task;}
+          if(result.status==='staged_for_review'){task.reviewReference=result.reviewReference;task.status='awaiting_review';task.answer='Cópia criada para revisão; o projeto original foi preservado.';return task;}
+          if(['approval_required','task_permission_required','path_out_of_scope','proposal_not_available'].includes(result.status)){task.status='blocked';task.reason=result.status;return task;}
+          task.code=result;task.status=result.status;return task;
+        }
         if (response.status !== 'ok' || response.result?.status === 'blocked' || response.result?.status?.startsWith('requires_')) { task.status = 'incomplete'; return task; }
       }
       const verification = record('verify', await this.#call('verify', { message, steps: task.steps, scope }, task));

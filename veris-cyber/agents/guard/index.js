@@ -10,8 +10,12 @@ export function checkScope({ target, activity, authorization } = {}) {
   if ((authorization.deniedActivities || []).some(x => normalize(x) === normalize(activity))) return { allowed: false, reason: 'activity_explicitly_denied' };
   return { allowed: true, reason: 'within_declared_scope' };
 }
-export default function guard({ authorized = false, scope = '', data = {} } = {}) {
+export default function guard({ authorized = false, scope = '', data = {} } = {},context={}) {
   if (authorized !== true || !valid(scope)) return { allowed: false, allowExecution: false, reason: 'authorization_and_scope_required' };
+  if(data.requestedAgent==='code' && typeof context.checkCodePermission==='function'){
+    const permission=context.checkCodePermission({operation:data.operation,project:data.project,permissionId:data.permissionId});
+    return {...permission,allowExecution:permission.allowed===true};
+  }
   const authorization = data?.authorization;
   const target = data?.target;
   const activity = data?.activity;

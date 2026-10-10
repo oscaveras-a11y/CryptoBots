@@ -1,7 +1,7 @@
 import { createAccessGuard } from './access.js';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import http from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { auditSource } from './source-audit.js';
@@ -9,23 +9,59 @@ import { analyzeSecurity } from './engine.js';
 import { planTask, reason } from './reasoning.js';
 import { createReasoningSession, addEvidence, nextReasoningStep } from './native-reasoning.js';
 import { orchestrate } from './orchestrator.js';
-import { verisCore } from '../core/src/index.js';
+import { VerisCore } from '../core/src/index.js';
 import { connectAgents } from '../core/src/connect-agents.js';
-connectAgents(verisCore);
+import { createLocalCodeService } from '../agents/code/local-service.js';
 
-export function createServer({ token = process.env.CYBER_API_TOKEN } = {}) {
+export function createServer({ token = process.env.CYBER_API_TOKEN, codeConfig = null } = {}) {
   const authorize = createAccessGuard(token);
+  const verisCore = connectAgents(new VerisCore({codeService:codeConfig ? createLocalCodeService(codeConfig) : null}));
   const server = http.createServer(async (req, res) => {
     const reply = (status, data) => {
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
       res.end(JSON.stringify(data));
     };
+    const assets = {'/':['index.html','text/html; charset=utf-8'],'/dashboard.js':['dashboard.js','text/javascript; charset=utf-8'],'/dashboard.css':['dashboard.css','text/css; charset=utf-8']};
+    if(req.method==='GET' && Object.hasOwn(assets,req.url)){
+      const [file,type]=assets[req.url];
+      res.writeHead(200,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"});
+      return res.end(readFileSync(new URL('../public/'+file,import.meta.url)));
+    }
     if (req.method === 'GET' && req.url === '/health') return reply(200, { ok: true, service: 'veris-cyber', mode: 'demo' });
     if (req.url.startsWith('/api/')) {
       const denied = authorize(req);
       if (denied) return reply(denied.status, {error: denied.error});
     }
     if (req.method === 'GET' && req.url === '/api/core/agents') return reply(200, { agents: verisCore.agents });
+    if(req.method==='GET' && req.url==='/api/core/queue')return reply(200,verisCore.queueStats);
+    const taskRoute=/^\/api\/core\/tasks\/([a-f0-9-]{36})(\/cancel)?$/.exec(req.url);
+    if(taskRoute && req.method==='GET' && !taskRoute[2]){
+      const task=verisCore.getTask(taskRoute[1]);return task?reply(200,task):reply(404,{error:'task_not_found'});
+    }
+    if(taskRoute && req.method==='POST' && taskRoute[2]){
+      const cancelled=verisCore.cancelQueued(taskRoute[1]);return reply(cancelled?200:409,{cancelled,reason:cancelled?'queued_task_cancelled':'only_pending_tasks_can_be_cancelled'});
+    }
+    if(req.method==='POST' && req.url==='/api/core/tasks'){
+      let body='';
+      try{
+        for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>20000)return reply(413,{error:'payload_too_large'});}
+        const request=JSON.parse(body);if(typeof request.message!=='string'||!request.message.trim()||request.message.length>4000)return reply(400,{error:'message_required'});
+        return reply(202,verisCore.submit(request));
+      }catch(error){return reply(error.message==='task_queue_full'?429:400,{error:error.message==='task_queue_full'?'task_queue_full':'invalid_task_request'});}
+    }
+    if (req.method === 'POST' && req.url === '/api/code') {
+      let body = '';
+      try {
+        for await (const chunk of req) {
+          body += chunk;
+          if (Buffer.byteLength(body) > 20000) return reply(413, { error: 'payload_too_large' });
+        }
+        const input = JSON.parse(body);
+        // Roots, policies, proposal contents and approval objects never cross this boundary.
+        const {operation,project,instruction,proposalId,approvalId,reviewReference,options,permissionId}=input;
+        return reply(200,await verisCore.codeOperation({operation,project,instruction,proposalId,approvalId,reviewReference,options,permissionId}));
+      } catch { return reply(400, { error: 'invalid_code_request' }); }
+    }
     if (req.method === 'POST' && req.url === '/api/core/run') {
       let body = '';
       try {
@@ -130,9 +166,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid CYBER_PORT');
   try {
     const token = process.env.CYBER_API_TOKEN || readFileSync(new URL('../config/api-token', import.meta.url), 'utf8').trim();
-    createServer({token}).listen(port, '127.0.0.1', () => console.log('VERIS CYBER local API listening on 127.0.0.1:' + port));
+    const config=fileURLToPath(new URL('../config/projects.json',import.meta.url));
+    const codeConfig=existsSync(config)?{config,authorityFile:fileURLToPath(new URL('../config/code-authority.json',import.meta.url)),workspaceStorage:fileURLToPath(new URL('../workspaces/',import.meta.url))}:null;
+    createServer({token,codeConfig}).listen(port, '127.0.0.1', () => console.log('VERIS CYBER local API listening on 127.0.0.1:' + port));
   } catch {
-    console.error('Configure o acesso com npm run setup antes de iniciar.');
+    console.error('Verifique o acesso (npm run setup) e a configuração local de projetos antes de iniciar.');
     process.exitCode = 1;
   }
 }

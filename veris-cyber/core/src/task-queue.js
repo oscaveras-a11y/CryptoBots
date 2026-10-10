@@ -7,11 +7,15 @@ export class TaskQueue {
   #active = 0;
   #limit;
   #maxPending;
-  constructor({ concurrency = 3, maxPending = 50 } = {}) {
+  #maxCompleted;
+  #completed=[];
+  constructor({ concurrency = 3, maxPending = 50, maxCompleted=100 } = {}) {
     if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 16) throw new TypeError('invalid_concurrency');
     if (!Number.isInteger(maxPending) || maxPending < 1 || maxPending > 1000) throw new TypeError('invalid_max_pending');
     this.#limit = concurrency;
     this.#maxPending = maxPending;
+    if(!Number.isInteger(maxCompleted)||maxCompleted<1||maxCompleted>1000)throw new TypeError('invalid_max_completed');
+    this.#maxCompleted=maxCompleted;
   }
   get stats() { return { active: this.#active, pending: this.#pending.length, concurrency: this.#limit }; }
   get(id) {
@@ -33,8 +37,10 @@ export class TaskQueue {
     this.#pending = this.#pending.filter(x => x.id !== id);
     job.status = 'cancelled';
     job.finishedAt = new Date().toISOString();
+    job.work=null;this.#retain(job.id);
     return true;
   }
+  #retain(id){this.#completed.push(id);while(this.#completed.length>this.#maxCompleted)this.#jobs.delete(this.#completed.shift());}
   #drain() {
     while (this.#active < this.#limit && this.#pending.length) {
       const job = this.#pending.shift();
@@ -49,6 +55,7 @@ export class TaskQueue {
         job.status = 'failed';
       }).finally(() => {
         job.finishedAt = new Date().toISOString();
+        job.work=null;this.#retain(job.id);
         this.#active--;
         this.#drain();
       });

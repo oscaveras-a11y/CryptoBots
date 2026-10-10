@@ -8,3 +8,6 @@ data/
 
 # JARVIS local API credential
 /veris-cyber/config/api-token
+/veris-cyber/config/projects.json
+/veris-cyber/config/code-authority.json*
+/veris-cyber/workspaces/

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "test": "node --test",
-    "setup": "node scripts/setup.js"
+    "setup": "node scripts/setup.js",
+    "code-access": "node scripts/code-access.js"
   },
   "engines": {
     "node": ">=20"
