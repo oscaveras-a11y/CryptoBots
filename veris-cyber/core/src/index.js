@@ -83,14 +83,14 @@ export class VerisCore {
     return response.status === 'ok' ? response.result : { status: 'error', error: response.error };
   }
   // CODE access goes through CORE; host-owned adapters enforce project allowlists and approvals.
-  async codeOperation({ operation, project, instruction, proposal, approval, reviewReference, options } = {}) {
+  async codeOperation({ operation, project, instruction, proposal, approval, reviewReference, options, permissionId } = {}) {
     if (!this.#codeService) return { status: 'requires_code_service', executed: false };
-    if (operation === 'inspect') return this.#codeService.inspect(project);
-    if (operation === 'security-audit') return this.#codeService.securityAudit(project);
-    if (operation === 'propose') return this.#codeService.propose(project, instruction, options);
-    if (operation === 'stage') return this.#codeService.stage(project, proposal, approval);
-    if (operation === 'test') return this.#codeService.test(project, reviewReference, approval);
-    if (operation === 'review') return this.#codeService.review(project, reviewReference, approval);
+    if (operation === 'inspect') return this.#codeService.inspect(project, permissionId);
+    if (operation === 'security-audit') return this.#codeService.securityAudit(project, permissionId);
+    if (operation === 'propose') return this.#codeService.propose(project, instruction, options, permissionId);
+    if (operation === 'stage') return this.#codeService.stage(project, proposal, approval, permissionId);
+    if (operation === 'test') return this.#codeService.test(project, reviewReference, approval, permissionId);
+    if (operation === 'review') return this.#codeService.review(project, reviewReference, approval, permissionId);
     return { status: 'unsupported_code_operation', executed: false };
   }
   async rememberExperience(experience) { return storeExperience(experience); }
