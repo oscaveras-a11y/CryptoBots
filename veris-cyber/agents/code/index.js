@@ -2,6 +2,7 @@
 // No filesystem, shell, network or GitHub write capability is granted by default.
 import { createHash } from 'node:crypto';
 import { verifyCodeChange } from './verification.js';
+import { mapArchitecture, rankSolutions, diagnoseFailures, planRefactor } from './intelligence.js';
 import { extname, posix } from 'node:path';
 
 const MAX_FILES = 200, MAX_BYTES = 300_000;
@@ -77,6 +78,10 @@ export default async function code({ instruction = '', data = {} } = {}, context
   if (context.signal?.aborted) throw new Error('code_aborted');
   if(typeof context.codeOperation==='function' && typeof data.project==='string')return context.codeOperation({...data,instruction});
   const operation = data.operation ?? 'inspect';
+  if (operation === 'architecture') return mapArchitecture(data.files);
+  if (operation === 'reason') return rankSolutions(data.options);
+  if (operation === 'debug') return diagnoseFailures(data.diagnostics);
+  if (operation === 'refactor_plan') return planRefactor(data.changes);
   if (operation === 'verify') return verifyCodeChange(data);
   if (operation === 'inspect') {
     if (!Array.isArray(data.files)) return { status: 'requires_project_files', instruction, executed: false };
