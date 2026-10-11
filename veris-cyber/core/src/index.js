@@ -385,6 +385,10 @@ export class VerisCore {
       task.status = 'error'; task.error = errorText(error); return task;
     } finally {
       task.completedAt = new Date().toISOString();
+      if(sessionId && typeof task.answer==='string' && task.answer.trim()){
+        try{this.rememberInteraction({scope:memoryScope,sessionId,role:'assistant',content:task.answer.slice(0,8000)});}
+        catch(error){task.interactionWarning=errorText(error);}
+      }
       this.#save(task);
     }
   }
