@@ -2,11 +2,12 @@ import Database from 'better-sqlite3';
 import {readFileSync,existsSync,mkdirSync} from 'node:fs';
 import {dirname,resolve,join} from 'node:path';
 import {homedir} from 'node:os';
+import {fileURLToPath} from 'node:url';
 import {randomUUID} from 'node:crypto';
 const norm=s=>s.trim().toLocaleLowerCase('pt-BR').replace(/\s+/g,' ');
 const valid=s=>typeof s==='string'&&s.trim()&&s.length<=200;
 const tokens=s=>[...new Set(norm(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').match(/[\p{L}\p{N}]{3,}/gu)??[])];
-export function createSqliteMemory({file=process.env.VERIS_SQLITE_MEMORY_PATH||join(process.env.LOCALAPPDATA||process.env.XDG_DATA_HOME||join(homedir(),'.local','share'),'VERIS-CYBER','memory.sqlite'),legacyPath=process.env.VERIS_MEMORY_PATH||new URL('../../data/memory.json',import.meta.url).pathname,cacheKb=8192}={}){
+export function createSqliteMemory({file=process.env.VERIS_SQLITE_MEMORY_PATH||join(process.env.LOCALAPPDATA||process.env.XDG_DATA_HOME||join(homedir(),'.local','share'),'VERIS-CYBER','memory.sqlite'),legacyPath=process.env.VERIS_MEMORY_PATH||fileURLToPath(new URL('../../data/memory.json',import.meta.url)),cacheKb=8192}={}){
  if(typeof file!=='string'||!file.trim()||!Number.isInteger(cacheKb)||cacheKb<256||cacheKb>65536)throw new TypeError('invalid_memory_config');
  const path=resolve(file);mkdirSync(dirname(path),{recursive:true});
  const db=new Database(path);
