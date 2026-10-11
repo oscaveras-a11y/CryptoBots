@@ -47,7 +47,9 @@ function inspect(files) {
         [/\b(?:password|apiKey|secret|token)\s*[:=]\s*['"][^'"]{8,}['"]/, 'possible_embedded_credential', 'high'],
         [/\bTODO\b|\bFIXME\b/, 'unfinished_work', 'low'],
         [/\b(?:innerHTML|outerHTML)\s*=\s*[^'"`]/, 'dynamic_html_injection_review', 'medium'],
-        [/\b(?:rejectUnauthorized\s*:\s*false|verify\s*=\s*False)\b/, 'tls_verification_disabled', 'high']
+        [/\b(?:rejectUnauthorized\s*:\s*false|verify\s*=\s*False)\b/, 'tls_verification_disabled', 'high'],
+        [/\b(?:Math\.random\(\)|random\.random\(\))/, 'weak_randomness_review', 'medium'],
+        [/\b(?:debug\s*:\s*true|DEBUG\s*=\s*True)\b/, 'debug_mode_enabled', 'medium']
       ];
       for (const [regex, code, severity] of rules) if (regex.test(line)) findings.push({ path: f.path, line: i + 1, code, severity, status: 'requires_review' });
     });
@@ -93,7 +95,7 @@ export default async function code({ instruction = '', data = {} } = {}, context
     const report=analyzeProject(data.files??[]);
     const priorities={high:0,medium:1,low:2};
     const findings=[...report.findings].sort((a,b)=>(priorities[a.severity]??3)-(priorities[b.severity]??3));
-    const remediation={dynamic_code_execution:'Replace eval with a parser or an explicit allowlisted operation.',shell_execution_review:'Avoid shell interpolation and prefer argument-array APIs.',possible_embedded_credential:'Move credentials to a secret store and rotate exposed values.',dynamic_html_injection_review:'Use textContent or a trusted HTML sanitizer.',tls_verification_disabled:'Enable certificate verification and configure trusted certificates.',unfinished_work:'Review the unfinished task before deployment.'};
+    const remediation={dynamic_code_execution:'Replace eval with a parser or an explicit allowlisted operation.',shell_execution_review:'Avoid shell interpolation and prefer argument-array APIs.',possible_embedded_credential:'Move credentials to a secret store and rotate exposed values.',dynamic_html_injection_review:'Use textContent or a trusted HTML sanitizer.',tls_verification_disabled:'Enable certificate verification and configure trusted certificates.',unfinished_work:'Review the unfinished task before deployment.',weak_randomness_review:'Use a cryptographically secure random generator for tokens or security-sensitive values.',debug_mode_enabled:'Disable debug mode in production and avoid exposing diagnostics.'};
     const reviewed=findings.map(item=>({...item,remediation:remediation[item.code]??'Review this finding and confirm exploitability before making changes.'}));
     return {status:'investigation_ready',executed:false,findings:reviewed,checkedFiles:report.files.length,summary:{high:findings.filter(f=>f.severity==='high').length,medium:findings.filter(f=>f.severity==='medium').length,low:findings.filter(f=>f.severity==='low').length},next:'review_findings_then_request_authorized_changes',limitations:[...report.limitations,'heuristics_not_proof_of_vulnerability']};
   }
