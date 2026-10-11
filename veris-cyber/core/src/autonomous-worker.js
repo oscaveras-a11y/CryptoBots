@@ -63,11 +63,9 @@ export function createAutonomousWorker({file,authorizeStep,executeStep,verifySte
      if(!failure.automaticRetry||attempts>=maxAttempts){task.status=failure.category==='retryable'?'retry_exhausted':failure.category;task.pendingStep=step.id;break;}
     }
     // Durable checkpoint before proceeding to another operation.
-    const state=await read();state.tasks[id]=task;
-    store.write(state);
+    store.update({version:1,tasks:{}},state=>{state.tasks[id]=task;return true;});
    }
-   const state=await read();state.tasks[id]=task;
-   await store.write(state);
+   store.update({version:1,tasks:{}},state=>{state.tasks[id]=task;return true;});
    return clone(task);
    }finally{lease.update({owner:null,until:0},state=>{if(state.owner===owner){state.owner=null;state.until=0;}return true;});}
   });
