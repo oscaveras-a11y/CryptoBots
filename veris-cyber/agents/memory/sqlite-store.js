@@ -22,7 +22,7 @@ export function createSqliteMemory({file=process.env.VERIS_SQLITE_MEMORY_PATH||j
  const fact=db.prepare('INSERT INTO facts(scope,question,answer,source,verified,saved_at) VALUES(?,?,?,?,?,?) ON CONFLICT(scope,question) DO UPDATE SET answer=excluded.answer,source=excluded.source,verified=excluded.verified,saved_at=excluded.saved_at');
  const exp=db.prepare('INSERT OR IGNORE INTO experiences(id,scope,project,summary,outcome,verified,source,task_id,saved_at) VALUES(?,?,?,?,?,?,?,?,?)');
  const legacy=resolve(legacyPath);
- if(!db.prepare("SELECT 1 FROM metadata WHERE key='legacy_migrated'").get()){
+ if(existsSync(legacy)&&!db.prepare("SELECT 1 FROM metadata WHERE key='legacy_migrated'").get()){
   const records=existsSync(legacy)?JSON.parse(readFileSync(legacy,'utf8')):{};
   if(!records||typeof records!=='object'||Array.isArray(records))throw new Error('invalid_legacy_memory');
   db.transaction(()=>{
