@@ -1,10 +1,9 @@
-import {createSqliteMemory} from './sqlite-store.js';
 import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 const dbPath = resolve(process.env.VERIS_MEMORY_PATH || 'veris-cyber/data/memory.json');
-const sqlite = process.env.VERIS_MEMORY_BACKEND === 'sqlite' ? createSqliteMemory() : null;
+const sqlite = process.env.VERIS_MEMORY_BACKEND === 'sqlite' ? (await import('./sqlite-store.js')).createSqliteMemory() : null;
 const normalize = text => text.trim().toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ');
 let queue = Promise.resolve();
 const serialized = fn => { const next = queue.then(fn); queue = next.catch(() => {}); return next; };
