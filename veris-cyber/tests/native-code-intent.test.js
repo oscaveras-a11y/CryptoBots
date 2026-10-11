@@ -16,5 +16,5 @@ test('CODE resolves missing final newline',async()=>{
 test('CODE declines unknown and conflicting requests',async()=>{
  assert.equal(interpretCodeInstruction('Crie uma IA universal',files).status,'unsupported_intent');
  assert.equal(interpretCodeInstruction('Remover espaços no fim e adicionar linha final',files).status,'ambiguous_intent');
- await assert.rejects(createNativeCodeEngine()({instruction:'Faça tudo sozinho',files}),/unsupported_intent/);
+ await assert.rejects(createNativeCodeEngine()({instruction:'Faça tudo sozinho',files}),/operation_not_supported/);
 });
