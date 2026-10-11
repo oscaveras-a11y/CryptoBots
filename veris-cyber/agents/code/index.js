@@ -87,6 +87,10 @@ export default async function code({ instruction = '', data = {} } = {}, context
   if (context.signal?.aborted) throw new Error('code_aborted');
   if(typeof context.codeOperation==='function' && typeof data.project==='string')return context.codeOperation({...data,instruction});
   const operation = data.operation ?? 'inspect';
+  if (operation === 'defensive_review') {
+    const report=analyzeProject(data.files??[]);
+    return {status:'review_ready',executed:false,findings:report.findings,checkedFiles:report.files.length,limitations:[...report.limitations,'static_review_only']};
+  }
   if (operation === 'generate') return generateCodeChanges({instruction:data.topic ?? instruction,files:data.files??[]});
   if (operation === 'run_tests') return context.allowIsolatedExecution===true ? runIsolatedNodeTests({files:data.files??[],timeoutMs:data.timeoutMs??12000}) : {status:'execution_permission_required',executed:false};
   if (operation === 'examples') return findCodeExamples(data.topic ?? instruction,data.limit ?? 3);
