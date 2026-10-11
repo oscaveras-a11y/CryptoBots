@@ -10,7 +10,7 @@ export default async function mind({ message = '', intent = 'task', data = {} } 
   if (intent === 'reason' || intent === 'reasoning') return reasonAboutGoal({goal:message,evidence:data?.evidence,constraints:data?.constraints,history:prior});
   const evidence = Array.isArray(data?.evidence) ? data.evidence.filter(x => typeof x === 'string').slice(0, 20) : [];
   if(['conversation','question'].includes(intent) && typeof context.generateText==='function' && !data?.researchEvidence?.length){
-    const result=await context.generateText({message,history:prior},{signal:context.signal});
+    const result=await context.generateText({message,history:prior,facts:Array.isArray(data?.evidence)?data.evidence:[]},{signal:context.signal});
     return {status:result.status==='ok'?'model_answer':result.status,answer:result.reply,model:result.model,verified:false,executed:false,evidence};
   }
   if (intent === 'conversation') {
