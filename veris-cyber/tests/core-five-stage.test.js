@@ -52,3 +52,12 @@ test('SQLite worker lease prevents simultaneous execution from independent proce
   await rm(dir,{recursive:true,force:true});
  }
 });
+
+test('CORE refuses learning without verified evidence and recalls verified experience',async()=>{
+ const core=new VerisCore();
+ await assert.rejects(core.learnFromVerifiedTask({taskId:'test',scope:'integration',project:'core',summary:'Verified outcome',outcome:'success'}),/verified_evidence_required/);
+ const saved=await core.learnFromVerifiedTask({taskId:'test',scope:'integration',project:'core',summary:'Reliable verified recovery',outcome:'success',verification:{verified:true,source:'test-suite'}});
+ assert.equal(saved.verified,true);
+ const items=await core.recallExperiences({scope:'integration',project:'core'});
+ assert.ok(items.some(x=>x.summary==='Reliable verified recovery'&&x.verified===true));
+});
