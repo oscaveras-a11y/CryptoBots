@@ -22,6 +22,7 @@ test('MEMORY stores and retrieves relevant project experiences across calls',asy
   assert.equal((await searchExperiences({scope:'user-a',project:'other',query:'SQLite'})).total,0);
  }finally{
   if(original===undefined)delete process.env.VERIS_SQLITE_MEMORY_PATH;else process.env.VERIS_SQLITE_MEMORY_PATH=original;
+  (await import('../agents/memory/index.js')).closeMemory();
   await rm(dir,{recursive:true,force:true});
  }
 });
