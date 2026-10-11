@@ -34,7 +34,7 @@ export class TaskQueue {
     }
   }
   #persist(){if(this.#store)this.#store.write({version:1,jobs:[...this.#jobs.values()].map(({work,...job})=>job)});}
-  #retainHistory(){this.#retainHistory();this.#persist();}
+  #retainHistory(){while(this.#completed.length>this.#maxCompleted)this.#jobs.delete(this.#completed.shift());}
   close(){this.#store?.close();}
   get stats() { return { active: this.#active, pending: this.#pending.length, concurrency: this.#limit, capacity: this.#maxPending, availableSlots: Math.max(0,this.#limit-this.#active) }; }
   get(id) {
@@ -75,7 +75,7 @@ export class TaskQueue {
         job.status = 'failed';
       }).finally(() => {
         job.finishedAt = new Date().toISOString();
-        job.work=null;this.#retain(job.id);
+        job.work=null;this.#retain(job.id);this.#persist();
         this.#active--;
         this.#drain();
       });
