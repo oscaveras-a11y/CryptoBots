@@ -143,6 +143,11 @@ export class VerisCore {
   createCodeJournal(config){return createTaskJournal(config);}
   createWorker(config){return createAutonomousWorker(config);}
   async rememberExperience(experience) { return storeExperience(experience); }
+  async learnFromVerifiedTask({taskId,scope,project,summary,outcome,verification}={}){
+    if(!verification||verification.verified!==true||typeof verification.source!=='string'||!verification.source.trim())throw new Error('verified_evidence_required');
+    if(typeof taskId!=='string'||!taskId.trim())throw new TypeError('task_id_required');
+    return storeExperience({taskId,scope,project,summary,outcome,source:verification.source,verified:true});
+  }
   async recallExperiences(query) { return findExperiences(query); }
   async searchMemory(query) { return searchExperiences(query); }
   async memoryStats(query) { return memoryStatistics(query); }
