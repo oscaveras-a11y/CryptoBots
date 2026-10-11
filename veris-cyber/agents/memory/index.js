@@ -61,3 +61,43 @@ export async function findExperiences({ scope, project, limit = 10 } = {}) {
     }).slice(-Math.max(1, Math.min(50, limit))).map(([id, value]) => ({ id, ...value }));
   });
 }
+
+
+// Contextual recall over persisted experiences; verified results are ranked first,
+// but unverified notes are never silently promoted to facts.
+const tokens = value => [...new Set(normalize(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').match(/[\p{L}\p{N}]{3,}/gu) ?? [])];
+export async function searchExperiences({scope,project,query,limit=20,offset=0,verifiedOnly=false}={}){
+ if (![scope,project,query].every(v=>typeof v==='string'&&v.trim()) || query.length>4000)throw new TypeError('invalid_memory_search');
+ if(!Number.isInteger(limit)||limit<1||limit>100||!Number.isInteger(offset)||offset<0||offset>100000)throw new TypeError('invalid_memory_pagination');
+ const words=tokens(query);
+ return serialized(async()=>{
+  const records=await load();
+  const matches=[];
+  for(const [key,value] of Object.entries(records)){
+   let parts;try{parts=JSON.parse(key);}catch{continue;}
+   if(!Array.isArray(parts)||parts[0]!=='experience'||parts[1]!==scope||parts[2]!==project)continue;
+   if(verifiedOnly&&value?.verified!==true)continue;
+   const summary=typeof value?.summary==='string'?value.summary:'';
+   const body=new Set(tokens(summary));
+   const overlap=words.filter(w=>body.has(w)).length;
+   if(!overlap)continue;
+   matches.push({id:key,summary,outcome:value.outcome,verified:value.verified===true,source:value.source,taskId:value.taskId,savedAt:value.savedAt,relevance:overlap/words.length});
+  }
+  matches.sort((a,b)=>b.relevance-a.relevance||Number(b.verified)-Number(a.verified)||String(b.savedAt).localeCompare(String(a.savedAt)));
+  return {results:matches.slice(offset,offset+limit),total:matches.length,offset,limit,persistence:'file'};
+ });
+}
+export async function memoryStatistics({scope,project}={}){
+ if(typeof scope!=='string'||!scope.trim()||typeof project!=='string'||!project.trim())throw new TypeError('invalid_memory_statistics');
+ return serialized(async()=>{
+  const records=await load();
+  let experiences=0,verified=0;
+  for(const [key,value] of Object.entries(records)){
+   let parts;try{parts=JSON.parse(key);}catch{continue;}
+   if(Array.isArray(parts)&&parts[0]==='experience'&&parts[1]===scope&&parts[2]===project){
+    experiences++;if(value?.verified===true)verified++;
+   }
+  }
+  return {scope,project,experiences,verified,unverified:experiences-verified,persistence:'file'};
+ });
+}
