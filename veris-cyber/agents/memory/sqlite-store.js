@@ -60,7 +60,7 @@ export function createSqliteMemory({file=process.env.VERIS_SQLITE_MEMORY_PATH||j
    const where='FROM experience_search JOIN experiences e ON e.rowid=experience_search.rowid WHERE experience_search MATCH ? AND e.scope=? AND e.project=?'+(verifiedOnly?' AND e.verified=1':'');
    const args=[match,scope,project];
    const total=db.prepare('SELECT count(*) AS n '+where).get(...args).n;
-   const rows=db.prepare('SELECT e.id,e.summary,e.outcome,e.verified,e.source,e.task_id AS taskId,e.saved_at AS savedAt,bm25(experience_search) AS rank '+where+' ORDER BY rank ASC,e.verified DESC,e.saved_at DESC LIMIT ? OFFSET ?').all(...args,limit,offset);
+   const rows=db.prepare('SELECT e.id,e.summary,e.outcome,e.verified,e.source,e.task_id AS taskId,e.saved_at AS savedAt,bm25(experience_search) AS rank '+where+' ORDER BY e.verified DESC,rank ASC,e.saved_at DESC LIMIT ? OFFSET ?').all(...args,limit,offset);
    return {results:rows.map(({rank,...x})=>({...x,verified:x.verified===1,relevance:-rank})),total,offset,limit,persistence:'sqlite'};
   },
   memoryStatistics({scope,project}={}){
