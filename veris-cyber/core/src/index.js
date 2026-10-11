@@ -40,13 +40,13 @@ export class VerisCore {
   #cyberService;
   #actionExecutor;
   #actionAuthorizer;
-  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, researchRetriever = searchMultipleSources, visionAnalyzer = null, audioTranscriber = null, speechSynthesizer = null, codeService = null, mindResponder=null, actionExecutor=null, actionAuthorizer=null } = {}) {
+  constructor({ handlers = {}, maxHistory = 100, concurrency = 3, maxPending = 50, durableQueue=false, researchRetriever = searchMultipleSources, visionAnalyzer = null, audioTranscriber = null, speechSynthesizer = null, codeService = null, mindResponder=null, actionExecutor=null, actionAuthorizer=null } = {}) {
     if (!Number.isInteger(maxHistory) || maxHistory < 1 || maxHistory > 1000) throw new TypeError('invalid_max_history');
     for(const adapter of [actionExecutor,actionAuthorizer])if(adapter!==null&&typeof adapter!=='function')throw new TypeError('invalid_action_adapter');
     this.#actionExecutor=actionExecutor;this.#actionAuthorizer=actionAuthorizer;
     this.#cyberService=codeService && typeof codeService.authorize==='function'?createCyberService({codeService}):null;
     this.#maxHistory = maxHistory;
-    this.#queue = new TaskQueue({ concurrency, maxPending, maxCompleted:maxHistory });
+    this.#queue = new TaskQueue({ concurrency, maxPending, maxCompleted:maxHistory, durable:durableQueue });
     if (typeof researchRetriever !== 'function') throw new TypeError('invalid_research_retriever');
     this.#researchRetriever = researchRetriever;
     if (visionAnalyzer !== null && typeof visionAnalyzer !== 'function') throw new TypeError('invalid_vision_analyzer');
