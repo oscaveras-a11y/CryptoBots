@@ -14,8 +14,9 @@ export function createStateStore({namespace,file}={}){
  const put=db.prepare('INSERT INTO state_documents(namespace,body,updated_at) VALUES(?,?,?) ON CONFLICT(namespace) DO UPDATE SET body=excluded.body,updated_at=excluded.updated_at');
  if(!get.get(namespace)&&file&&existsSync(file)){
   const raw=readFileSync(file,'utf8');
-  JSON.parse(raw); // Refuse corrupt migration; preserve original file.
-  put.run(namespace,raw,new Date().toISOString());
+  const parsed=JSON.parse(raw); // Refuse corrupt migration; preserve original file.
+  const migrated=namespace.startsWith('journal-')&&Array.isArray(parsed)?{version:1,tasks:parsed}:parsed;
+  put.run(namespace,JSON.stringify(migrated),new Date().toISOString());
  }
  return {
   read(fallback){const row=get.get(namespace);return row?JSON.parse(row.body):structuredClone(fallback);},
