@@ -87,6 +87,10 @@ export default async function code({ instruction = '', data = {} } = {}, context
   if (context.signal?.aborted) throw new Error('code_aborted');
   if(typeof context.codeOperation==='function' && typeof data.project==='string')return context.codeOperation({...data,instruction});
   const operation = data.operation ?? 'inspect';
+  if (operation === 'security_workflow') {
+    const report=analyzeProject(data.files??[]);
+    return {status:'investigation_ready',executed:false,findings:report.findings,checkedFiles:report.files.length,next:'review_findings_then_request_authorized_changes',limitations:report.limitations};
+  }
   if (operation === 'defensive_review') {
     const report=analyzeProject(data.files??[]);
     return {status:'review_ready',executed:false,findings:report.findings,checkedFiles:report.files.length,limitations:[...report.limitations,'static_review_only']};
