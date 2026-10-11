@@ -56,3 +56,8 @@ export function createAutonomousWorker({file,authorizeStep,executeStep,verifySte
    }
    const state=await read();state.tasks[id]=task;
    await store.write(state);
+   return clone(task);
+  });
+ }
+ return {register,get,run,close:()=>store.close()};
+}
