@@ -10,3 +10,13 @@ export default function verify({ steps = [], research } = {}) {
   if (research) return reviewResearch(research.evidence ?? []);
   return { verified: steps.length > 0 && steps.every(s => s.result?.verified === true && s.result?.executed === true), checked: steps.length };
 }
+
+// Explicit task evidence assessment. Caller assertions alone never prove execution.
+export function reviewTaskEvidence({checks=[],approval=null,reviewReference=null}={}){
+ if(!Array.isArray(checks)||checks.length>100)throw new TypeError('invalid_task_checks');
+ const usable=checks.filter(c=>c&&typeof c.name==='string'&&c.name.trim()&&['passed','failed','skipped'].includes(c.status));
+ const failures=usable.filter(c=>c.status==='failed').map(c=>c.name);
+ const testsPassed=usable.length>0&&usable.every(c=>c.status==='passed');
+ const approved=approval?.confirmed===true&&typeof approval.proposalId==='string'&&approval.proposalId.length>0&&typeof reviewReference==='string'&&reviewReference.length>0;
+ return {status:failures.length?'checks_failed':!testsPassed?'insufficient_test_evidence':!approved?'approval_required':'ready_for_trusted_confirmation',testsPassed,approved,verified:false,failures,checked:usable.length,limitations:['trusted_execution_and_approval_must_be_verified_by_core']};
+}
