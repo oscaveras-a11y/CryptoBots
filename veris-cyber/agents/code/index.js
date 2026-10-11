@@ -93,7 +93,9 @@ export default async function code({ instruction = '', data = {} } = {}, context
     const report=analyzeProject(data.files??[]);
     const priorities={high:0,medium:1,low:2};
     const findings=[...report.findings].sort((a,b)=>(priorities[a.severity]??3)-(priorities[b.severity]??3));
-    return {status:'investigation_ready',executed:false,findings,checkedFiles:report.files.length,summary:{high:findings.filter(f=>f.severity==='high').length,medium:findings.filter(f=>f.severity==='medium').length,low:findings.filter(f=>f.severity==='low').length},next:'review_findings_then_request_authorized_changes',limitations:[...report.limitations,'heuristics_not_proof_of_vulnerability']};
+    const remediation={dynamic_code_execution:'Replace eval with a parser or an explicit allowlisted operation.',shell_execution_review:'Avoid shell interpolation and prefer argument-array APIs.',possible_embedded_credential:'Move credentials to a secret store and rotate exposed values.',dynamic_html_injection_review:'Use textContent or a trusted HTML sanitizer.',tls_verification_disabled:'Enable certificate verification and configure trusted certificates.',unfinished_work:'Review the unfinished task before deployment.'};
+    const reviewed=findings.map(item=>({...item,remediation:remediation[item.code]??'Review this finding and confirm exploitability before making changes.'}));
+    return {status:'investigation_ready',executed:false,findings:reviewed,checkedFiles:report.files.length,summary:{high:findings.filter(f=>f.severity==='high').length,medium:findings.filter(f=>f.severity==='medium').length,low:findings.filter(f=>f.severity==='low').length},next:'review_findings_then_request_authorized_changes',limitations:[...report.limitations,'heuristics_not_proof_of_vulnerability']};
   }
   if (operation === 'defensive_review') {
     const report=analyzeProject(data.files??[]);
