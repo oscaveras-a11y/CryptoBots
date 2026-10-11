@@ -45,7 +45,9 @@ function inspect(files) {
         [/\beval\s*\(/, 'dynamic_code_execution', 'high'],
         [/\b(?:exec|execSync)\s*\(/, 'shell_execution_review', 'high'],
         [/\b(?:password|apiKey|secret|token)\s*[:=]\s*['"][^'"]{8,}['"]/, 'possible_embedded_credential', 'high'],
-        [/\bTODO\b|\bFIXME\b/, 'unfinished_work', 'low']
+        [/\bTODO\b|\bFIXME\b/, 'unfinished_work', 'low'],
+        [/\b(?:innerHTML|outerHTML)\s*=\s*[^'"`]/, 'dynamic_html_injection_review', 'medium'],
+        [/\b(?:rejectUnauthorized\s*:\s*false|verify\s*=\s*False)\b/, 'tls_verification_disabled', 'high']
       ];
       for (const [regex, code, severity] of rules) if (regex.test(line)) findings.push({ path: f.path, line: i + 1, code, severity, status: 'requires_review' });
     });
