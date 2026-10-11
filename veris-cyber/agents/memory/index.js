@@ -10,3 +10,5 @@ export async function storeExperience(experience={}){return sqlite.storeExperien
 export async function findExperiences(query={}){return sqlite.findExperiences(query);}
 export async function searchExperiences(query={}){return sqlite.searchExperiences(query);}
 export async function memoryStatistics(query={}){return sqlite.memoryStatistics(query);}
+
+export function closeMemory(){sqlite.close();}
