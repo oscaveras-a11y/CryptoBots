@@ -23,6 +23,34 @@ export function createNativeCodeEngine() {
       if (occurrences !== 1) throw new Error('replace_requires_unique_match');
       return [change(file, file.content.replace(from,to))];
     }
+    if (action === 'replace-many') {
+      // Multiple exact replacements in one atomic proposal, never fuzzy or inferred.
+      const replacements=options.replacements;
+      if(!Array.isArray(replacements)||replacements.length<1||replacements.length>40)throw new TypeError('invalid_replacements');
+      const grouped=new Map();
+      for(const item of replacements){
+        if(!item||typeof item.path!=='string'||typeof item.from!=='string'||!item.from||typeof item.to!=='string'||item.from.length>10000||item.to.length>10000)throw new TypeError('invalid_replacement');
+        if(!files.some(f=>f.path===item.path))throw new Error('target_not_found');
+        if(!grouped.has(item.path))grouped.set(item.path,[]);
+        grouped.get(item.path).push(item);
+      }
+      if(grouped.size>20)throw new TypeError('too_many_changed_files');
+      const changes=[];
+      for(const [path,items] of grouped){
+        const file=files.find(f=>f.path===path);
+        const sources=new Set();
+        let content=file.content;
+        for(const item of items){
+          if(sources.has(item.from))throw new Error('duplicate_replacement_source');
+          sources.add(item.from);
+          const occurrences=content.split(item.from).length-1;
+          if(occurrences!==1)throw new Error('replace_requires_unique_match');
+          content=content.replace(item.from,item.to);
+        }
+        if(content!==file.content)changes.push(change(file,content));
+      }
+      return changes;
+    }
     if (action === 'remove-trailing-whitespace') {
       return files.filter(f => JS.test(f.path) && /[ \t]+$/m.test(f.content))
         .slice(0,20).map(f => change(f, f.content.replace(/[ \t]+$/gm,'')));
