@@ -10,8 +10,9 @@ test('CORE connects CODE journal and worker to one durable SQLite store',async()
  const previous=process.env.VERIS_SQLITE_MEMORY_PATH;
  process.env.VERIS_SQLITE_MEMORY_PATH=join(dir,'memory.sqlite');
  const opened=[];
+ let core;
  try{
-  const core=new VerisCore();
+  core=new VerisCore();
   const file=join(dir,'code.json');
   const journal=core.createCodeJournal({file});opened.push(journal);
   const first=await journal.create({project:'alpha',instruction:'Inspect'});
@@ -27,6 +28,7 @@ test('CORE connects CODE journal and worker to one durable SQLite store',async()
   assert.equal((await reopened.get('job')).status,'awaiting_review');
  }finally{
   for(const item of opened)item.close();
+  core?.close();
   if(previous===undefined)delete process.env.VERIS_SQLITE_MEMORY_PATH;
   else process.env.VERIS_SQLITE_MEMORY_PATH=previous;
   await rm(dir,{recursive:true,force:true});
@@ -37,14 +39,16 @@ test('legacy JSON journal is imported without deleting the original',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'veris-legacy-journal-'));
  const previous=process.env.VERIS_SQLITE_MEMORY_PATH;
  process.env.VERIS_SQLITE_MEMORY_PATH=join(dir,'memory.sqlite');
+ let core;
  try{
   const file=join(dir,'tasks.json');
   await writeFile(file,JSON.stringify([{id:'abc',project:'legacy',instruction:'Saved task',phase:'investigate',status:'active',notes:[]}]));
-  const core=new VerisCore();
+  core=new VerisCore();
   const journal=core.createCodeJournal({file});
   try{assert.equal((await journal.list()).length,1);}
   finally{journal.close();}
  }finally{
+  core?.close();
   if(previous===undefined)delete process.env.VERIS_SQLITE_MEMORY_PATH;
   else process.env.VERIS_SQLITE_MEMORY_PATH=previous;
   await rm(dir,{recursive:true,force:true});
