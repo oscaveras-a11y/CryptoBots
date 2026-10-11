@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { TaskQueue } from './task-queue.js';
+import {createTaskJournal} from '../../agents/code/task-journal.js';
+import {createAutonomousWorker} from './autonomous-worker.js';
 import { validatePlan, planWaves } from '../../agents/planner/index.js';
 import { orchestrate } from '../../src/orchestrator.js';
 import senseAgent from '../../agents/sense/index.js';
@@ -128,6 +130,8 @@ export class VerisCore {
     if (operation === 'review') return this.#codeService.review(project, reviewReference, approval, permissionId);
     return { status: 'unsupported_code_operation', executed: false };
   }
+  createCodeJournal(config){return createTaskJournal(config);}
+  createWorker(config){return createAutonomousWorker(config);}
   async rememberExperience(experience) { return storeExperience(experience); }
   async recallExperiences(query) { return findExperiences(query); }
   async searchMemory(query) { return searchExperiences(query); }
