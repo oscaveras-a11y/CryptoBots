@@ -8,12 +8,31 @@ function validate(files) {
   for (const f of files) if (!f || typeof f.path !== 'string' || typeof f.content !== 'string') throw new TypeError('invalid_file');
 }
 function change(f, content) { return {path:f.path,expectedSha256:sha(f.content),content}; }
+// Limited Portuguese/English intent resolver. Never invents edits or silently guesses a target.
+export function interpretCodeInstruction(instruction, files=[]) {
+  if(typeof instruction!=='string'||instruction.length>4000)throw new TypeError('invalid_instruction');
+  validate(files);
+  const text=instruction.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const wantsNewline=/(linha final|quebra de linha final|final newline|newline at end)/.test(text);
+  const wantsWhitespace=/(espacos? (?:em branco )?(?:no fim|finais?)|trailing whitespace|remov(?:a|er) espacos?)/.test(text);
+  if(wantsNewline&&wantsWhitespace)return {status:'ambiguous_intent',reason:'multiple_operations'};
+  if(wantsNewline||wantsWhitespace) {
+    const action=wantsNewline?'ensure-final-newline':'remove-trailing-whitespace';
+    const mentioned=files.filter(f=>instruction.includes(f.path));
+    if(mentioned.length>1)return {status:'ambiguous_intent',reason:'multiple_target_files'};
+    return {status:'resolved',operation:action,options:mentioned.length?{paths:[mentioned[0].path]}:{},confidence:'rule_based'};
+  }
+  return {status:'unsupported_intent',reason:'explicit_operation_required'};
+}
 export function createNativeCodeEngine() {
   return async function generateChanges({ instruction, files, operation = null, options = {} } = {}) {
     validate(files);
     if (typeof instruction !== 'string' || instruction.length > 4000) throw new TypeError('invalid_instruction');
     // Operations are explicit and intentionally narrow; never infer unsafe edits from prose.
-    const action = operation ?? options.operation;
+    const intent=operation||options.operation?null:interpretCodeInstruction(instruction,files);
+    if(intent&&intent.status!=='resolved')throw new Error('native_engine_'+intent.status);
+    const action = operation ?? options.operation ?? intent.operation;
+    if(intent)options={...intent.options,...options};
     if (action === 'replace-literal') {
       const { path, from, to } = options;
       if (typeof path !== 'string' || typeof from !== 'string' || !from || typeof to !== 'string' || from.length > 10000 || to.length > 10000) throw new TypeError('invalid_replace_request');
