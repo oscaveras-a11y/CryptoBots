@@ -11,7 +11,7 @@ test('cycle retries failing checks and requires review',async()=>{
   generateChanges:async()=>({changes:[{path:'new.js',content:'export const ok = true;',expectedSha256:null}]}),
   runChecks:async()=>{
    calls++;
-   return {testResults:[{status:calls===1?'failed':'passed',source:'isolated',name:'unit'}],staticAnalysis:[{status:'passed',source:'isolated',name:'lint'}]};
+   return {testResults:[{status:calls===1?'failed':'passed',source:'isolated',name:'unit'}],staticAnalysis:[{status:'passed',source:'isolated',name:'lint'}],runnerResult:{status:calls===1?'failed':'passed',executed:true}};
   }
  });
  assert.equal(calls,2);
