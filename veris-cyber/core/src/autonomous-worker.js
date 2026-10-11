@@ -9,9 +9,8 @@ const validId=id=>typeof id==='string'&&/^[a-zA-Z0-9_-]{1,100}$/.test(id);
 export function createAutonomousWorker({file,authorizeStep,executeStep,verifyStep,maxAttempts=3}={}){
  if(typeof file!=='string'||!file.trim()||![authorizeStep,executeStep,verifyStep].every(x=>typeof x==='function')||!Number.isInteger(maxAttempts)||maxAttempts<1||maxAttempts>10)throw new TypeError('invalid_worker_configuration');
  const store=createStateStore({namespace:'worker-'+createHash('sha256').update(file).digest('hex').slice(0,40),file});
- const store=createCheckpointStore({file,initial:{version:1,tasks:{}},validate:x=>x?.version===1&&x.tasks&&typeof x.tasks==='object'&&!Array.isArray(x.tasks)});
  let queue=Promise.resolve();
- async function read(){return store.read();}
+ async function read(){return store.read({version:1,tasks:{}});}
  function serialized(fn){const next=queue.then(fn);queue=next.then(()=>{},()=>{});return next;}
  async function mutate(fn){return serialized(async()=>{
   const state=await read(),result=await fn(state);
