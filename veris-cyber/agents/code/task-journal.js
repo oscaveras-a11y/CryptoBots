@@ -1,26 +1,20 @@
 // Persistent, resumable CODE task journal. No automatic shell or filesystem edits.
-import {readFile,writeFile,rename,mkdir} from 'node:fs/promises';
-import {dirname} from 'node:path';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
+import {createStateStore} from '../memory/state-store.js';
 const phases=['investigate','reason','propose','verify','review'];
 const maxNotes=200;
 function validId(id){return typeof id==='string'&&/^[a-f0-9-]{36}$/.test(id);}
 function copy(v){return structuredClone(v);}
 export function createTaskJournal({file}={}){
  if(typeof file!=='string'||!file.trim())throw new TypeError('journal_file_required');
+ const store=createStateStore({namespace:'journal-'+createHash('sha256').update(file).digest('hex').slice(0,40),file});
  let queue=Promise.resolve();
- async function load(){
-  try{const raw=JSON.parse(await readFile(file,'utf8'));return raw&&raw.version===1&&Array.isArray(raw.tasks)?raw.tasks:[];}
-  catch(e){if(e.code==='ENOENT')return [];throw e;}
- }
+ async function load(){const raw=store.read({version:1,tasks:[]});return raw&&raw.version===1&&Array.isArray(raw.tasks)?raw.tasks:[];}
  function transaction(fn){
   const result=queue.then(async()=>{
    const tasks=await load();
    const value=await fn(tasks);
-   await mkdir(dirname(file),{recursive:true});
-   const tmp=file+'.'+randomUUID()+'.tmp';
-   await writeFile(tmp,JSON.stringify({version:1,tasks},null,2),{encoding:'utf8',mode:0o600,flag:'wx'});
-   await rename(tmp,file);
+   store.write({version:1,tasks});
    return copy(value);
   });
   queue=result.then(()=>{},()=>{});
