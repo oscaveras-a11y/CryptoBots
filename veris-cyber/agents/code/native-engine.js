@@ -30,7 +30,7 @@ export function createNativeCodeEngine() {
     if (typeof instruction !== 'string' || instruction.length > 4000) throw new TypeError('invalid_instruction');
     // Operations are explicit and intentionally narrow; never infer unsafe edits from prose.
     const intent=operation||options.operation?null:interpretCodeInstruction(instruction,files);
-    if(intent&&intent.status!=='resolved')throw new Error('native_engine_'+intent.status);
+    if(intent&&intent.status!=='resolved')throw new Error(intent.status==='unsupported_intent'?'native_engine_operation_not_supported':'native_engine_'+intent.status);
     const action = operation ?? options.operation ?? intent.operation;
     if(intent)options={...intent.options,...options};
     if (action === 'replace-literal') {
