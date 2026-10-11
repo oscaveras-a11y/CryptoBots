@@ -158,6 +158,7 @@ export class VerisCore {
   rememberInteraction(entry){return this.#interactionMemory.append(entry);}
   recallInteractions({scope='default',sessionId}={}){return this.#interactionMemory.list(scope,sessionId);}
   clearInteractions({scope='default',sessionId}={}){return this.#interactionMemory.clear(scope,sessionId);}
+  searchInteractions({scope='default',sessionId,query,limit=10}={}){return this.#interactionMemory.search(scope,sessionId,query,limit);}
   #save(task) {
     this.#history.set(task.id, task);
     if (this.#history.size > this.#maxHistory) this.#history.delete(this.#history.keys().next().value);
@@ -188,7 +189,9 @@ export class VerisCore {
     if (!['auto','informational'].includes(mode) || data === null || typeof data !== 'object' || Array.isArray(data)) throw new TypeError('invalid_options');
     const sessionId = typeof data.sessionId === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(data.sessionId) ? data.sessionId : null;
     const memoryScope = scope.trim() || 'default';
-    const interactionContext = sessionId ? this.recallInteractions({scope:memoryScope,sessionId}).slice(-12) : [];
+    const recent = sessionId ? this.recallInteractions({scope:memoryScope,sessionId}).slice(-8) : [];
+    const related = sessionId ? this.searchInteractions({scope:memoryScope,sessionId,query:message,limit:5}) : [];
+    const interactionContext = [...recent,...related.filter(item=>!recent.some(previous=>previous.at===item.at&&previous.content===item.content))].slice(-13);
     if(sessionId)this.rememberInteraction({scope:memoryScope,sessionId,role:'user',content:message});
     const task = { id: randomUUID(), message, scope, status: 'running', trace: [], createdAt: new Date().toISOString(), completedAt: null };
     if(sessionId)task.interactionContext=interactionContext;
