@@ -17,6 +17,7 @@ import { summarizeExperience } from './experience.js';
 import { runIsolatedNodeTests } from './isolated-runner.js';
 import { checkNodeProposal } from './check-node-proposal.js';
 import { generateCodeChanges } from './generator.js';
+import { retrieveCodeContext } from './context-retrieval.js';
 import { mapArchitecture, rankSolutions, diagnoseFailures, planRefactor } from './intelligence.js';
 import { extname, posix } from 'node:path';
 
@@ -97,6 +98,7 @@ export default async function code({ instruction = '', data = {} } = {}, context
   if (context.signal?.aborted) throw new Error('code_aborted');
   if(typeof context.codeOperation==='function' && typeof data.project==='string')return context.codeOperation({...data,instruction});
   const operation = data.operation ?? 'inspect';
+  if (operation === 'retrieve_context') return retrieveCodeContext({instruction:data.topic ?? instruction,files:data.files??[],limit:data.limit??8,maxChars:data.maxChars??12000});
   if (operation === 'windows_tcp_check') return checkWindowsTcpPorts({...data,signal:context.signal});
   if (operation === 'windows_mission') return createWindowsMission(data);
   if (operation === 'windows_assessment_plan') return prepareWindowsAssessment(data);
