@@ -5,7 +5,7 @@ import { orchestrate } from '../../src/orchestrator.js';
 import senseAgent from '../../agents/sense/index.js';
 import mindAgent from '../../agents/mind/index.js';
 import plannerAgent from '../../agents/planner/index.js';
-import memoryAgent, { storeExperience, findExperiences } from '../../agents/memory/index.js';
+import memoryAgent, { storeExperience, findExperiences, searchExperiences, memoryStatistics } from '../../agents/memory/index.js';
 import researchAgent from '../../agents/research/index.js';
 import { searchMultipleSources } from '../../agents/research/multi-source.js';
 import visionAgent from '../../agents/vision/index.js';
@@ -130,6 +130,8 @@ export class VerisCore {
   }
   async rememberExperience(experience) { return storeExperience(experience); }
   async recallExperiences(query) { return findExperiences(query); }
+  async searchMemory(query) { return searchExperiences(query); }
+  async memoryStats(query) { return memoryStatistics(query); }
   #save(task) {
     this.#history.set(task.id, task);
     if (this.#history.size > this.#maxHistory) this.#history.delete(this.#history.keys().next().value);
