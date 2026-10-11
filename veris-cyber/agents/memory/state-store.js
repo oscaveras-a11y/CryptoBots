@@ -20,6 +20,17 @@ export function createStateStore({namespace,file}={}){
  return {
   read(fallback){const row=get.get(namespace);return row?JSON.parse(row.body):structuredClone(fallback);},
   write(value){put.run(namespace,JSON.stringify(value),new Date().toISOString());},
+  update(fallback,change){
+   if(typeof change!=='function')throw new TypeError('invalid_state_update');
+   return db.transaction(()=>{
+    const row=get.get(namespace);
+    const state=row?JSON.parse(row.body):structuredClone(fallback);
+    const result=change(state);
+    if(result&&typeof result.then==='function')throw new TypeError('async_state_update_not_supported');
+    put.run(namespace,JSON.stringify(state),new Date().toISOString());
+    return structuredClone(result);
+   }).immediate();
+  },
   close(){db.close();}
  };
 }
