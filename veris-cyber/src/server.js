@@ -24,7 +24,7 @@ export function createServer({ token = process.env.CYBER_API_TOKEN, codeConfig =
   const localModel=languageModel ? createLocalModel(languageModel) : null;
   const researchRetriever=networkMode==='offline'?async()=>{throw new Error('external_research_disabled');}:networkMode==='tor'?(query,options)=>searchMultipleSources(query,{...options,fetchImpl:createTorFetch()}):searchMultipleSources;
   const actionService=codeConfig?createLocalActionService(codeConfig):null;
-  const verisCore = connectAgents(new VerisCore({actionExecutor:actionService?.execute??null,actionAuthorizer:actionService?.authorize??null,codeService:codeConfig ? createLocalCodeService(codeConfig) : null,mindResponder:localModel,researchRetriever}));
+  const verisCore = connectAgents(new VerisCore({durableQueue:true,actionExecutor:actionService?.execute??null,actionAuthorizer:actionService?.authorize??null,codeService:codeConfig ? createLocalCodeService(codeConfig) : null,mindResponder:localModel,researchRetriever}));
   const server = http.createServer(async (req, res) => {
     const reply = (status, data) => {
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
