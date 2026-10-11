@@ -186,7 +186,12 @@ export class VerisCore {
     if (typeof message !== 'string' || !message.trim() || message.length > MAX_MESSAGE) throw new TypeError('message_required');
     if (typeof scope !== 'string' || scope.length > 1000 || typeof authorized !== 'boolean') throw new TypeError('invalid_scope');
     if (!['auto','informational'].includes(mode) || data === null || typeof data !== 'object' || Array.isArray(data)) throw new TypeError('invalid_options');
+    const sessionId = typeof data.sessionId === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(data.sessionId) ? data.sessionId : null;
+    const memoryScope = scope.trim() || 'default';
+    const interactionContext = sessionId ? this.recallInteractions({scope:memoryScope,sessionId}).slice(-12) : [];
+    if(sessionId)this.rememberInteraction({scope:memoryScope,sessionId,role:'user',content:message});
     const task = { id: randomUUID(), message, scope, status: 'running', trace: [], createdAt: new Date().toISOString(), completedAt: null };
+    if(sessionId)task.interactionContext=interactionContext;
     const record = (name, response) => { task.trace.push({ agent: name, status: response.status, durationMs: response.durationMs ?? null, attempts: response.attempts ?? 1 }); return response; };
     try {
       // The existing deterministic orchestrator provides a safe baseline when specialized agents are not connected.
@@ -197,7 +202,7 @@ export class VerisCore {
         sense.status === 'ok' && sense.result?.intent === 'task' ? 'task' :
         sense.status === 'ok' && sense.result?.intent === 'conversation' ? 'conversation' :
         baseline.mode === 'question' || baseline.mode === 'memory_fast_path' ? 'question' : 'task';
-      const routedData = { ...data, requestedAgent: data.requestedAgent ?? sense.result?.requestedAgent };
+      const routedData = { ...data, ...(sessionId ? {priorInteractions:interactionContext} : {}), requestedAgent: data.requestedAgent ?? sense.result?.requestedAgent };
       const memory = record('memory', await this.#call('memory', { message, intent, data: routedData }, task));
       // Experience retrieval is advisory, scoped to the explicitly named project.
       if (typeof scope === 'string' && scope.trim() && typeof routedData.project === 'string' && routedData.project.trim()) {
