@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { TaskQueue } from './task-queue.js';
 import {createTaskJournal} from '../../agents/code/task-journal.js';
 import {createAutonomousWorker} from './autonomous-worker.js';
+import {createStateStore} from '../../agents/memory/state-store.js';
 import { validatePlan, planWaves } from '../../agents/planner/index.js';
 import { orchestrate } from '../../src/orchestrator.js';
 import senseAgent from '../../agents/sense/index.js';
@@ -29,6 +30,7 @@ const errorText = error => error instanceof Error ? error.message : String(error
 export class VerisCore {
   #handlers = new Map();
   #history = new Map();
+  #historyStore;
   #maxHistory;
   #queue;
   #researchRetriever;
@@ -46,6 +48,14 @@ export class VerisCore {
     this.#actionExecutor=actionExecutor;this.#actionAuthorizer=actionAuthorizer;
     this.#cyberService=codeService && typeof codeService.authorize==='function'?createCyberService({codeService}):null;
     this.#maxHistory = maxHistory;
+    if(durableQueue){
+      this.#historyStore=createStateStore({namespace:'core-history'});
+      const saved=this.#historyStore.read({version:1,tasks:[]});
+      for(const item of (saved.tasks??[]).slice(-maxHistory)){
+        if(item.status==='running'){item.status='interrupted';item.reason='restart_requires_review';}
+        this.#history.set(item.id,item);
+      }
+    }
     this.#queue = new TaskQueue({ concurrency, maxPending, maxCompleted:maxHistory, durable:durableQueue });
     if (typeof researchRetriever !== 'function') throw new TypeError('invalid_research_retriever');
     this.#researchRetriever = researchRetriever;
@@ -136,9 +146,11 @@ export class VerisCore {
   async recallExperiences(query) { return findExperiences(query); }
   async searchMemory(query) { return searchExperiences(query); }
   async memoryStats(query) { return memoryStatistics(query); }
+  close(){this.#queue.close();this.#historyStore?.close();}
   #save(task) {
     this.#history.set(task.id, task);
     if (this.#history.size > this.#maxHistory) this.#history.delete(this.#history.keys().next().value);
+    this.#historyStore?.write({version:1,tasks:[...this.#history.values()]});
     return task;
   }
   async #call(name, input, task) {
