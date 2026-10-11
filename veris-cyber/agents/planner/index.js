@@ -90,3 +90,17 @@ export default function planner({ message = '', data = {} } = {}) {
     return { steps: [], requiresSelection: true, reason: error instanceof Error ? error.message : 'invalid_plan' };
   }
 }
+
+// Resume a validated plan from persisted step results. Failed/blocked dependencies are not skipped.
+export function nextPlanSteps(steps, results = {}, concurrency = 3) {
+  const plan=validatePlan(steps);
+  if(!results||typeof results!=='object'||Array.isArray(results))throw new TypeError('invalid_plan_results');
+  if(!Number.isInteger(concurrency)||concurrency<1||concurrency>16)throw new TypeError('invalid_concurrency');
+  const ids=new Set(plan.map(s=>s.id));
+  if(Object.keys(results).some(id=>!ids.has(id)))throw new TypeError('unknown_result_step');
+  const done=new Set(plan.filter(s=>results[s.id]?.status==='completed'&&results[s.id]?.verified===true).map(s=>s.id));
+  const blocked=plan.filter(s=>results[s.id]?.status==='blocked').map(s=>s.id);
+  const ready=plan.filter(s=>!done.has(s.id)&&!blocked.includes(s.id)&&s.dependsOn.every(id=>done.has(id)))
+    .sort((a,b)=>b.priority-a.priority||plan.indexOf(a)-plan.indexOf(b)).slice(0,concurrency);
+  return {status:done.size===plan.length?'completed':ready.length?'ready':blocked.length?'blocked':'waiting',ready,completed:[...done],blocked,remaining:plan.length-done.size};
+}
