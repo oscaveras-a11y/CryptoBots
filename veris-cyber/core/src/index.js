@@ -3,6 +3,7 @@ import { TaskQueue } from './task-queue.js';
 import {createTaskJournal} from '../../agents/code/task-journal.js';
 import {createAutonomousWorker} from './autonomous-worker.js';
 import {createStateStore} from '../../agents/memory/state-store.js';
+import {createInteractionMemory} from '../../agents/memory/interactions.js';
 import { validatePlan, planWaves } from '../../agents/planner/index.js';
 import { orchestrate } from '../../src/orchestrator.js';
 import senseAgent from '../../agents/sense/index.js';
@@ -31,6 +32,7 @@ export class VerisCore {
   #handlers = new Map();
   #history = new Map();
   #historyStore;
+  #interactionMemory;
   #maxHistory;
   #queue;
   #researchRetriever;
@@ -48,6 +50,7 @@ export class VerisCore {
     this.#actionExecutor=actionExecutor;this.#actionAuthorizer=actionAuthorizer;
     this.#cyberService=codeService && typeof codeService.authorize==='function'?createCyberService({codeService}):null;
     this.#maxHistory = maxHistory;
+    this.#interactionMemory = createInteractionMemory();
     if(durableQueue){
       this.#historyStore=createStateStore({namespace:'core-history'});
       const saved=this.#historyStore.read({version:1,tasks:[]});
@@ -151,7 +154,10 @@ export class VerisCore {
   async recallExperiences(query) { return findExperiences(query); }
   async searchMemory(query) { return searchExperiences(query); }
   async memoryStats(query) { return memoryStatistics(query); }
-  close(){this.#queue.close();this.#historyStore?.close();}
+  close(){this.#queue.close();this.#historyStore?.close();this.#interactionMemory?.close();}
+  rememberInteraction(entry){return this.#interactionMemory.append(entry);}
+  recallInteractions({scope='default',sessionId}={}){return this.#interactionMemory.list(scope,sessionId);}
+  clearInteractions({scope='default',sessionId}={}){return this.#interactionMemory.clear(scope,sessionId);}
   #save(task) {
     this.#history.set(task.id, task);
     if (this.#history.size > this.#maxHistory) this.#history.delete(this.#history.keys().next().value);
