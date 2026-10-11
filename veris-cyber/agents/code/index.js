@@ -89,7 +89,9 @@ export default async function code({ instruction = '', data = {} } = {}, context
   const operation = data.operation ?? 'inspect';
   if (operation === 'security_workflow') {
     const report=analyzeProject(data.files??[]);
-    return {status:'investigation_ready',executed:false,findings:report.findings,checkedFiles:report.files.length,next:'review_findings_then_request_authorized_changes',limitations:report.limitations};
+    const priorities={high:0,medium:1,low:2};
+    const findings=[...report.findings].sort((a,b)=>(priorities[a.severity]??3)-(priorities[b.severity]??3));
+    return {status:'investigation_ready',executed:false,findings,checkedFiles:report.files.length,summary:{high:findings.filter(f=>f.severity==='high').length,medium:findings.filter(f=>f.severity==='medium').length,low:findings.filter(f=>f.severity==='low').length},next:'review_findings_then_request_authorized_changes',limitations:[...report.limitations,'heuristics_not_proof_of_vulnerability']};
   }
   if (operation === 'defensive_review') {
     const report=analyzeProject(data.files??[]);
