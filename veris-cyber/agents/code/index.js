@@ -2,6 +2,7 @@
 // No filesystem, shell, network or GitHub write capability is granted by default.
 import { createHash } from 'node:crypto';
 import { planBlackBoxAssessment } from '../cyber/blackbox.js';
+import { evaluateMissionStep } from '../cyber/mission-policy.js';
 import { verifyCodeChange } from './verification.js';
 import { getCodeKnowledge } from './knowledge.js';
 import { engineeringBrief } from './engineering.js';
@@ -92,6 +93,7 @@ export default async function code({ instruction = '', data = {} } = {}, context
   if (context.signal?.aborted) throw new Error('code_aborted');
   if(typeof context.codeOperation==='function' && typeof data.project==='string')return context.codeOperation({...data,instruction});
   const operation = data.operation ?? 'inspect';
+  if (operation === 'mission_check') return evaluateMissionStep(data.mission,data.step,context.authorizationVerified===true);
   if (operation === 'blackbox_plan') return planBlackBoxAssessment(data);
   if (operation === 'security_workflow') {
     const report=analyzeProject(data.files??[]);
