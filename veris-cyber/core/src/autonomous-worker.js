@@ -9,8 +9,9 @@ const validId=id=>typeof id==='string'&&/^[a-zA-Z0-9_-]{1,100}$/.test(id);
 export function createAutonomousWorker({file,authorizeStep,executeStep,verifyStep,maxAttempts=3}={}){
  if(typeof file!=='string'||!file.trim()||![authorizeStep,executeStep,verifyStep].every(x=>typeof x==='function')||!Number.isInteger(maxAttempts)||maxAttempts<1||maxAttempts>10)throw new TypeError('invalid_worker_configuration');
  const store=createStateStore({namespace:'worker-'+createHash('sha256').update(file).digest('hex').slice(0,40),file});
+ const store=createCheckpointStore({file,initial:{version:1,tasks:{}},validate:x=>x?.version===1&&x.tasks&&typeof x.tasks==='object'&&!Array.isArray(x.tasks)});
  let queue=Promise.resolve();
- async function read(){const value=store.read({version:1,tasks:{}});if(value?.version!==1||!value.tasks||typeof value.tasks!=='object')throw new Error('invalid_worker_state');return value;}
+ async function read(){return store.read();}
  function serialized(fn){const next=queue.then(fn);queue=next.then(()=>{},()=>{});return next;}
  async function mutate(fn){return serialized(async()=>{
   const state=await read(),result=await fn(state);
@@ -55,11 +56,4 @@ export function createAutonomousWorker({file,authorizeStep,executeStep,verifySte
     store.write(state);
    }
    const state=await read();state.tasks[id]=task;
-   await mkdir(dirname(file),{recursive:true});
-   const temp=file+'.'+randomUUID()+'.tmp';
-   await writeFile(temp,JSON.stringify(state,null,2),{mode:0o600,flag:'wx'});await rename(temp,file);
-   return clone(task);
-  });
- }
- return {register,get,run};
-}
+   await store.write(state);
