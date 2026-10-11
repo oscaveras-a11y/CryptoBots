@@ -14,8 +14,16 @@ export async function runDevelopmentCycle(input={}, adapters={}) {
   const output=await adapters.generateChanges({instruction,files,brief,feedback,attempt});
   if(!output||!Array.isArray(output.changes)||output.changes.length===0)
    return {status:'invalid_generated_changes',brief,attempts:attempt,history};
-  const proposal=adapters.prepareChanges(files,output.changes);
-  const checks=await adapters.runChecks({proposal,files,attempt});
+  let proposal,checks;
+  try {
+   proposal=adapters.prepareChanges(files,output.changes);
+   checks=await adapters.runChecks({proposal,files,attempt});
+  } catch(error) {
+   const message=error instanceof Error?error.message:String(error);
+   history.push({attempt,passed:false,error:message});
+   feedback=[{source:'validation',message}];
+   continue;
+  }
   if(!checks||!Array.isArray(checks.testResults)||!Array.isArray(checks.staticAnalysis))
    return {status:'invalid_test_evidence',brief,attempts:attempt,history};
   const records=[...checks.testResults,...checks.staticAnalysis];
