@@ -12,10 +12,7 @@ export function createTaskJournal({file}={}){
  async function load(){return store.read({version:1,tasks:[]}).tasks;}
  function transaction(fn){
   const result=queue.then(async()=>{
-   const tasks=await load();
-   const value=await fn(tasks);
-   store.write({version:1,tasks});
-   return copy(value);
+   return store.update({version:1,tasks:[]},state=>fn(state.tasks));
   });
   queue=result.then(()=>{},()=>{});
   return result;
