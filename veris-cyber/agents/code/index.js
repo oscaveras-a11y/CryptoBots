@@ -96,6 +96,7 @@ export default async function code({ instruction = '', data = {} } = {}, context
   if (operation === 'examples') return findCodeExamples(data.topic ?? instruction,data.limit ?? 3);
   if (operation === 'experience') return summarizeExperience(data.records ?? [],data.limit ?? 10);
   if (operation === 'cycle') return runDevelopmentCycle({...data,instruction:data.topic ?? instruction},{generateChanges:context.generateChanges ?? generateCodeChanges,prepareChanges,runChecks:context.runChecks ?? (context.allowIsolatedExecution===true ? checkNodeProposal : undefined)});
+  if (operation === 'diagnose_and_fix') return runDevelopmentCycle({...data,instruction:data.topic ?? instruction},{generateChanges:context.generateChanges ?? generateCodeChanges,prepareChanges,runChecks:context.runChecks ?? (context.allowIsolatedExecution===true ? checkNodeProposal : undefined)});
   if (operation === 'develop') return developCode({...data,instruction:data.topic ?? instruction},{generateChanges:context.generateChanges,prepareChanges,runChecks:context.runChecks});
   if (operation === 'engineering') return engineeringBrief({instruction:data.topic ?? instruction,files:data.files ?? [],diagnostics:data.diagnostics ?? [],limit:data.limit ?? 5});
   if (operation === 'knowledge') return getCodeKnowledge({topic:data.topic ?? instruction,limit:data.limit ?? 5});
