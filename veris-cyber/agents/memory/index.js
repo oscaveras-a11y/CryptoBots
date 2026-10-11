@@ -1,8 +1,10 @@
+import {createSqliteMemory} from './sqlite-store.js';
 import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 const dbPath = resolve(process.env.VERIS_MEMORY_PATH || 'veris-cyber/data/memory.json');
+const sqlite = process.env.VERIS_MEMORY_BACKEND === 'sqlite' ? createSqliteMemory() : null;
 const normalize = text => text.trim().toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ');
 let queue = Promise.resolve();
 const serialized = fn => { const next = queue.then(fn); queue = next.catch(() => {}); return next; };
@@ -24,6 +26,7 @@ async function save(value) {
 export async function storeVerified(question, answer, { source = 'verified', scope = 'default' } = {}) {
   if (typeof question !== 'string' || typeof answer !== 'string' || !question.trim() || !answer.trim() || question.length > 4000 || answer.length > 8000) throw new TypeError('invalid_memory');
   if (typeof scope !== 'string' || !scope.trim() || scope.length > 200) throw new TypeError('invalid_scope');
+  if(sqlite)return sqlite.storeVerified(question,answer,{source,scope});
   return serialized(async () => {
     const records = await load();
     records[JSON.stringify([scope, normalize(question)])] = { answer: answer.trim(), source, verified: true, savedAt: new Date().toISOString() };
@@ -34,6 +37,7 @@ export async function storeVerified(question, answer, { source = 'verified', sco
 export default async function memory({ message = '', data = {} } = {}) {
   if (typeof message !== 'string' || !message.trim() || message.length > 4000) throw new TypeError('invalid_memory_query');
   const scope = typeof data?.memoryScope === 'string' && data.memoryScope.trim() ? data.memoryScope : 'default';
+  if(sqlite)return sqlite.recall(message,{scope});
   return serialized(async () => {
     const records = await load();
     const item = records[JSON.stringify([scope, normalize(message)])];
@@ -44,6 +48,7 @@ export default async function memory({ message = '', data = {} } = {}) {
 export async function storeExperience({ scope, project, summary, outcome = 'unknown', verified = false, source = 'agent', taskId = null } = {}) {
   if (![scope, project, summary].every(v => typeof v === 'string' && v.trim()) || summary.length > 4000) throw new TypeError('invalid_experience');
   if (!['success', 'failure', 'unknown'].includes(outcome)) throw new TypeError('invalid_outcome');
+  if(sqlite)return sqlite.storeExperience({scope,project,summary,outcome,verified,source,taskId});
   return serialized(async () => {
     const records = await load();
     const key = JSON.stringify(['experience', scope, project, randomUUID()]);
@@ -54,6 +59,7 @@ export async function storeExperience({ scope, project, summary, outcome = 'unkn
 }
 export async function findExperiences({ scope, project, limit = 10 } = {}) {
   if (typeof scope !== 'string' || !scope.trim() || typeof project !== 'string' || !project.trim()) throw new TypeError('invalid_experience_query');
+  if(sqlite)return sqlite.findExperiences({scope,project,limit});
   return serialized(async () => {
     const records = await load();
     return Object.entries(records).filter(([key]) => {
@@ -69,6 +75,7 @@ const tokens = value => [...new Set(normalize(value).normalize('NFD').replace(/[
 export async function searchExperiences({scope,project,query,limit=20,offset=0,verifiedOnly=false}={}){
  if (![scope,project,query].every(v=>typeof v==='string'&&v.trim()) || query.length>4000)throw new TypeError('invalid_memory_search');
  if(!Number.isInteger(limit)||limit<1||limit>100||!Number.isInteger(offset)||offset<0||offset>100000)throw new TypeError('invalid_memory_pagination');
+ if(sqlite)return sqlite.searchExperiences({scope,project,query,limit,offset,verifiedOnly});
  const words=tokens(query);
  return serialized(async()=>{
   const records=await load();
@@ -89,6 +96,7 @@ export async function searchExperiences({scope,project,query,limit=20,offset=0,v
 }
 export async function memoryStatistics({scope,project}={}){
  if(typeof scope!=='string'||!scope.trim()||typeof project!=='string'||!project.trim())throw new TypeError('invalid_memory_statistics');
+ if(sqlite)return sqlite.memoryStatistics({scope,project});
  return serialized(async()=>{
   const records=await load();
   let experiences=0,verified=0;
