@@ -8,9 +8,8 @@ function copy(v){return structuredClone(v);}
 export function createTaskJournal({file}={}){
  if(typeof file!=='string'||!file.trim())throw new TypeError('journal_file_required');
  const store=createStateStore({namespace:'journal-'+createHash('sha256').update(file).digest('hex').slice(0,40),file});
- const store=createCheckpointStore({file,initial:{version:1,tasks:[]},validate:x=>x?.version===1&&Array.isArray(x.tasks)});
  let queue=Promise.resolve();
- async function load(){return (await store.read()).tasks;}
+ async function load(){return store.read({version:1,tasks:[]}).tasks;}
  function transaction(fn){
   const result=queue.then(async()=>{
    const tasks=await load();
