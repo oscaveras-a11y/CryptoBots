@@ -13,8 +13,7 @@ export function createAutonomousWorker({file,authorizeStep,executeStep,verifySte
  async function read(){return store.read({version:1,tasks:{}});}
  function serialized(fn){const next=queue.then(fn);queue=next.then(()=>{},()=>{});return next;}
  async function mutate(fn){return serialized(async()=>{
-  const state=await read(),result=await fn(state);
-  store.write(state);return clone(result);
+  return store.update({version:1,tasks:{}},state=>fn(state));
  });}
  async function get(id){if(!validId(id))throw new TypeError('invalid_task_id');return clone((await serialized(read)).tasks[id]??null);}
  async function register({id,steps}={}){
