@@ -5,10 +5,9 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 test('MEMORY stores and retrieves relevant project experiences across calls',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'veris-memory-'));
- const original=process.env.VERIS_MEMORY_PATH;
+ const original=process.env.VERIS_SQLITE_MEMORY_PATH;
  try{
-  process.env.VERIS_MEMORY_PATH=join(dir,'memory.json');
-  process.env.VERIS_MEMORY_BACKEND='json';
+  process.env.VERIS_SQLITE_MEMORY_PATH=join(dir,'memory.sqlite');
   const {storeExperience,searchExperiences,memoryStatistics}=await import('../agents/memory/index.js');
   await storeExperience({scope:'user-a',project:'jarvis',summary:'SQLite database migration failed',outcome:'failure',verified:false});
   await storeExperience({scope:'user-a',project:'jarvis',summary:'SQLite database migration fixed with transaction',outcome:'success',verified:true});
@@ -22,8 +21,7 @@ test('MEMORY stores and retrieves relevant project experiences across calls',asy
   assert.deepEqual([stats.experiences,stats.verified,stats.unverified],[2,1,1]);
   assert.equal((await searchExperiences({scope:'user-a',project:'other',query:'SQLite'})).total,0);
  }finally{
-  if(original===undefined)delete process.env.VERIS_MEMORY_PATH;else process.env.VERIS_MEMORY_PATH=original;
-  delete process.env.VERIS_MEMORY_BACKEND;
+  if(original===undefined)delete process.env.VERIS_SQLITE_MEMORY_PATH;else process.env.VERIS_SQLITE_MEMORY_PATH=original;
   await rm(dir,{recursive:true,force:true});
  }
 });
