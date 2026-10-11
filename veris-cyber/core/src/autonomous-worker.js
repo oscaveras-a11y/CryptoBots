@@ -1,26 +1,20 @@
 // Durable autonomous work loop: no bypass of host authorization or verification.
 // Each step result is checkpointed; a restart resumes from verified results.
-import {readFile,writeFile,rename,mkdir} from 'node:fs/promises';
-import {dirname} from 'node:path';
-import {randomUUID} from 'node:crypto';
+import {createHash} from 'node:crypto';
+import {createStateStore} from '../../agents/memory/state-store.js';
 import {validatePlan,nextPlanSteps} from '../../agents/planner/index.js';
 import {classifyTaskFailure} from './engine-readiness.js';
 const clone=value=>structuredClone(value);
 const validId=id=>typeof id==='string'&&/^[a-zA-Z0-9_-]{1,100}$/.test(id);
 export function createAutonomousWorker({file,authorizeStep,executeStep,verifyStep,maxAttempts=3}={}){
  if(typeof file!=='string'||!file.trim()||![authorizeStep,executeStep,verifyStep].every(x=>typeof x==='function')||!Number.isInteger(maxAttempts)||maxAttempts<1||maxAttempts>10)throw new TypeError('invalid_worker_configuration');
+ const store=createStateStore({namespace:'worker-'+createHash('sha256').update(file).digest('hex').slice(0,40),file});
  let queue=Promise.resolve();
- async function read(){
-  try{const value=JSON.parse(await readFile(file,'utf8'));if(value?.version!==1||!value.tasks||typeof value.tasks!=='object')throw new Error('invalid_worker_state');return value;}
-  catch(e){if(e.code==='ENOENT')return {version:1,tasks:{}};throw e;}
- }
+ async function read(){const value=store.read({version:1,tasks:{}});if(value?.version!==1||!value.tasks||typeof value.tasks!=='object')throw new Error('invalid_worker_state');return value;}
  function serialized(fn){const next=queue.then(fn);queue=next.then(()=>{},()=>{});return next;}
  async function mutate(fn){return serialized(async()=>{
   const state=await read(),result=await fn(state);
-  await mkdir(dirname(file),{recursive:true});
-  const temp=file+'.'+randomUUID()+'.tmp';
-  await writeFile(temp,JSON.stringify(state,null,2),{mode:0o600,flag:'wx'});
-  await rename(temp,file);return clone(result);
+  store.write(state);return clone(result);
  });}
  async function get(id){if(!validId(id))throw new TypeError('invalid_task_id');return clone((await serialized(read)).tasks[id]??null);}
  async function register({id,steps}={}){
@@ -58,9 +52,7 @@ export function createAutonomousWorker({file,authorizeStep,executeStep,verifySte
     }
     // Durable checkpoint before proceeding to another operation.
     const state=await read();state.tasks[id]=task;
-    await mkdir(dirname(file),{recursive:true});
-    const temp=file+'.'+randomUUID()+'.tmp';
-    await writeFile(temp,JSON.stringify(state,null,2),{mode:0o600,flag:'wx'});await rename(temp,file);
+    store.write(state);
    }
    const state=await read();state.tasks[id]=task;
    await mkdir(dirname(file),{recursive:true});
