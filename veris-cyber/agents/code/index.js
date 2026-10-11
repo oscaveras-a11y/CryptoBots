@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { planBlackBoxAssessment } from '../cyber/blackbox.js';
 import { evaluateMissionStep } from '../cyber/mission-policy.js';
 import { runCyberMission } from '../cyber/mission-runner.js';
+import { prepareWindowsAssessment } from '../cyber/windows-assessment.js';
 import { verifyCodeChange } from './verification.js';
 import { getCodeKnowledge } from './knowledge.js';
 import { engineeringBrief } from './engineering.js';
@@ -94,6 +95,7 @@ export default async function code({ instruction = '', data = {} } = {}, context
   if (context.signal?.aborted) throw new Error('code_aborted');
   if(typeof context.codeOperation==='function' && typeof data.project==='string')return context.codeOperation({...data,instruction});
   const operation = data.operation ?? 'inspect';
+  if (operation === 'windows_assessment_plan') return prepareWindowsAssessment(data);
   if (operation === 'mission_run') return runCyberMission(data.mission,data.steps,context.cyberRunner,context.authorizationVerified===true);
   if (operation === 'mission_check') return evaluateMissionStep(data.mission,data.step,context.authorizationVerified===true);
   if (operation === 'blackbox_plan') return planBlackBoxAssessment(data);
