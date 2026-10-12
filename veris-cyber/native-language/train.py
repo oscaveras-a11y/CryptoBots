@@ -11,6 +11,7 @@ def main():
     parser.add_argument("--output",default="jarvis-moe-prototype.pt")
     parser.add_argument("--steps",type=int,default=30)
     parser.add_argument("--seed",type=int,default=42)
+    parser.add_argument("--resume",action="store_true")
     args=parser.parse_args()
     if not 1<=args.steps<=5000:
         parser.error("steps must be between 1 and 5000")
@@ -22,6 +23,27 @@ def main():
     cfg=Config()
     model=JarvisMoE(cfg)
     optimizer=torch.optim.AdamW(model.parameters(),lr=0.0003)
+    completed=0
+    target=Path(args.output)
+    if args.resume:
+        if not target.is_file():
+            parser.error("checkpoint not found")
+        checkpoint=torch.load(target,map_location="cpu",weights_only=True)
+        if checkpoint.get("config")!=vars(cfg):
+            parser.error("checkpoint configuration mismatch")
+        model.load_state_dict(checkpoint["state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        completed=int(checkpoint["steps"])
+        if completed<0 or completed>1000000:
+            parser.error("invalid checkpoint step")
+    elif target.exists():
+        parser.error("output already exists; choose another path")
+    def save_checkpoint(steps):
+        target.parent.mkdir(parents=True,exist_ok=True)
+        temp=target.with_suffix(".tmp")
+        torch.save({"config":vars(cfg),"state_dict":model.state_dict(),"optimizer":optimizer.state_dict(),
+                    "steps":steps,"tokenizer":"utf8_bytes_v0","training":"experimental_cpu"},temp)
+        temp.replace(target)
     data=torch.tensor(list(raw),dtype=torch.long)
     for step in range(args.steps):
         start=int(torch.randint(0,len(data)-cfg.context-1,(1,)).item())
@@ -33,13 +55,10 @@ def main():
         torch.nn.utils.clip_grad_norm_(model.parameters(),1.0)
         optimizer.step()
         if step==0 or (step+1)%10==0:
-            print(f"step={step+1} loss={loss.item():.4f} parameters={parameter_count(model)}",flush=True)
-    target=Path(args.output)
-    if target.exists():
-        parser.error("output already exists; choose another path")
-    target.parent.mkdir(parents=True,exist_ok=True)
-    torch.save({"config":vars(cfg),"state_dict":model.state_dict(),"steps":args.steps,
-                "tokenizer":"utf8_bytes_v0","training":"experimental_cpu"},target)
+            print(f"step={completed+step+1} loss={loss.item():.4f} parameters={parameter_count(model)}",flush=True)
+        if (step+1)%10==0:
+            save_checkpoint(completed+step+1)
+    save_checkpoint(completed+args.steps)
     print(f"prototype_saved={target}")
 
 if __name__=="__main__":
