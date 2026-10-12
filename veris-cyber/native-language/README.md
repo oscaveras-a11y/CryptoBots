@@ -21,3 +21,17 @@ The byte-level prototype is deliberately small and CPU-friendly. A future produc
 ## Safety and resource expectations
 
 On 8 GB RAM, close heavy programs before CPU training. The training CLI limits steps and corpus size and never downloads datasets or sends text to external services. The project does not automatically execute commands, write to other projects, or replace the current model.
+
+## Integrated local dashboard
+
+From the `veris-cyber` directory, after installing the Python CPU environment as above:
+
+```powershell
+npm run training:ui
+```
+
+Open `http://127.0.0.1:3211` on the **same PC**. Enter the full path of your authorized UTF-8 training corpus and choose **Iniciar novo**. The dashboard shows training output, checkpoint availability, and lets you **Interromper** or **Retomar checkpoint**. The manager never trains without a user click. It is bound only to the loopback interface; do not expose this port via tunnel or port forwarding.
+
+The checkpoint is written every 10 steps and on successful completion. **Stopping between saves discards the steps since the last checkpoint.** Resuming continues weights and optimizer state, but not the exact random sampling sequence. This is a development tool, not a secure multi-user service or production training scheduler. Do not open untrusted checkpoint files.
+
+**7B weights are not being trained by this dashboard.** This interface runs the small CPU MoE prototype; scaling to 7B requires substantial additional engineering and hardware.
