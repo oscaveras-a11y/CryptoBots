@@ -12,7 +12,8 @@
     "chat": "node scripts/chat-local.js",
     "action": "node scripts/action-local.js",
     "action-access": "node scripts/code-access.js",
-    "windows:diagnostics": "node scripts/windows-diagnostics.js"
+    "windows:diagnostics": "node scripts/windows-diagnostics.js",
+    "training:ui": "node scripts/training-manager.js"
   },
   "engines": {
     "node": ">=20"
