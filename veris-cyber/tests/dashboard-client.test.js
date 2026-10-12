@@ -7,7 +7,7 @@ function element(){return {value:'',textContent:'',disabled:false,children:[],li
 test('panel sends entered credential once and clears it on disconnect',async()=>{
   const elements=new Map(),requests=[];
   const document={getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id);},createElement:element};
-  const context=vm.createContext({document,AbortController,fetch:async(url,options)=>{requests.push({url,options});return {ok:true,json:async()=>({agents:[{name:'code',connected:true}]})};}});
+  const context=vm.createContext({document,AbortController,setInterval:()=>1,clearInterval:()=>{},fetch:async(url,options)=>{requests.push({url,options});return {ok:true,json:async()=>({agents:[{name:'code',registered:true,ready:true}],queue:{pending:0}})};}});
   vm.runInContext(await readFile(new URL('../public/dashboard.js',import.meta.url),'utf8'),context);
   document.getElementById('token').value='a'.repeat(64);
   document.getElementById('connect').dispatch('submit',{preventDefault(){},submitter:element()});

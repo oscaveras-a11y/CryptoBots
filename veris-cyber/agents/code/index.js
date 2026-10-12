@@ -1,6 +1,24 @@
 // CODE: project inspection, evidence-backed findings, proposals and explicitly gated changes.
 // No filesystem, shell, network or GitHub write capability is granted by default.
 import { createHash } from 'node:crypto';
+import { planBlackBoxAssessment } from '../cyber/blackbox.js';
+import { evaluateMissionStep } from '../cyber/mission-policy.js';
+import { runCyberMission } from '../cyber/mission-runner.js';
+import { prepareWindowsAssessment } from '../cyber/windows-assessment.js';
+import { createWindowsMission } from '../cyber/windows-mission.js';
+import { checkWindowsTcpPorts } from '../cyber/linux-windows-probe.js';
+import { verifyCodeChange } from './verification.js';
+import { getCodeKnowledge } from './knowledge.js';
+import { engineeringBrief } from './engineering.js';
+import { developCode } from './development.js';
+import { runDevelopmentCycle } from './cycle.js';
+import { findCodeExamples } from './examples.js';
+import { summarizeExperience } from './experience.js';
+import { runIsolatedNodeTests } from './isolated-runner.js';
+import { checkNodeProposal } from './check-node-proposal.js';
+import { generateCodeChanges } from './generator.js';
+import { retrieveCodeContext } from './context-retrieval.js';
+import { mapArchitecture, rankSolutions, diagnoseFailures, planRefactor } from './intelligence.js';
 import { extname, posix } from 'node:path';
 
 const MAX_FILES = 200, MAX_BYTES = 300_000;
@@ -34,7 +52,11 @@ function inspect(files) {
         [/\beval\s*\(/, 'dynamic_code_execution', 'high'],
         [/\b(?:exec|execSync)\s*\(/, 'shell_execution_review', 'high'],
         [/\b(?:password|apiKey|secret|token)\s*[:=]\s*['"][^'"]{8,}['"]/, 'possible_embedded_credential', 'high'],
-        [/\bTODO\b|\bFIXME\b/, 'unfinished_work', 'low']
+        [/\bTODO\b|\bFIXME\b/, 'unfinished_work', 'low'],
+        [/\b(?:innerHTML|outerHTML)\s*=\s*[^'"`]/, 'dynamic_html_injection_review', 'medium'],
+        [/\b(?:rejectUnauthorized\s*:\s*false|verify\s*=\s*False)\b/, 'tls_verification_disabled', 'high'],
+        [/\b(?:Math\.random\(\)|random\.random\(\))/, 'weak_randomness_review', 'medium'],
+        [/\b(?:debug\s*:\s*true|DEBUG\s*=\s*True)\b/, 'debug_mode_enabled', 'medium']
       ];
       for (const [regex, code, severity] of rules) if (regex.test(line)) findings.push({ path: f.path, line: i + 1, code, severity, status: 'requires_review' });
     });
@@ -76,6 +98,39 @@ export default async function code({ instruction = '', data = {} } = {}, context
   if (context.signal?.aborted) throw new Error('code_aborted');
   if(typeof context.codeOperation==='function' && typeof data.project==='string')return context.codeOperation({...data,instruction});
   const operation = data.operation ?? 'inspect';
+  if (operation === 'retrieve_context') return retrieveCodeContext({instruction:data.topic ?? instruction,files:data.files??[],limit:data.limit??8,maxChars:data.maxChars??12000});
+  if (operation === 'windows_tcp_check') return checkWindowsTcpPorts({...data,signal:context.signal});
+  if (operation === 'windows_mission') return createWindowsMission(data);
+  if (operation === 'windows_assessment_plan') return prepareWindowsAssessment(data);
+  if (operation === 'mission_run') return runCyberMission(data.mission,data.steps,context.cyberRunner,context.authorizationVerified===true);
+  if (operation === 'mission_check') return evaluateMissionStep(data.mission,data.step,context.authorizationVerified===true);
+  if (operation === 'blackbox_plan') return planBlackBoxAssessment(data);
+  if (operation === 'security_workflow') {
+    const report=analyzeProject(data.files??[]);
+    const priorities={high:0,medium:1,low:2};
+    const findings=[...report.findings].sort((a,b)=>(priorities[a.severity]??3)-(priorities[b.severity]??3));
+    const remediation={dynamic_code_execution:'Replace eval with a parser or an explicit allowlisted operation.',shell_execution_review:'Avoid shell interpolation and prefer argument-array APIs.',possible_embedded_credential:'Move credentials to a secret store and rotate exposed values.',dynamic_html_injection_review:'Use textContent or a trusted HTML sanitizer.',tls_verification_disabled:'Enable certificate verification and configure trusted certificates.',unfinished_work:'Review the unfinished task before deployment.',weak_randomness_review:'Use a cryptographically secure random generator for tokens or security-sensitive values.',debug_mode_enabled:'Disable debug mode in production and avoid exposing diagnostics.'};
+    const reviewed=findings.map(item=>({...item,remediation:remediation[item.code]??'Review this finding and confirm exploitability before making changes.'}));
+    return {status:'investigation_ready',executed:false,findings:reviewed,checkedFiles:report.files.length,summary:{high:findings.filter(f=>f.severity==='high').length,medium:findings.filter(f=>f.severity==='medium').length,low:findings.filter(f=>f.severity==='low').length},next:'review_findings_then_request_authorized_changes',limitations:[...report.limitations,'heuristics_not_proof_of_vulnerability']};
+  }
+  if (operation === 'defensive_review') {
+    const report=analyzeProject(data.files??[]);
+    return {status:'review_ready',executed:false,findings:report.findings,checkedFiles:report.files.length,limitations:[...report.limitations,'static_review_only']};
+  }
+  if (operation === 'generate') return generateCodeChanges({instruction:data.topic ?? instruction,files:data.files??[]});
+  if (operation === 'run_tests') return context.allowIsolatedExecution===true ? runIsolatedNodeTests({files:data.files??[],timeoutMs:data.timeoutMs??12000}) : {status:'execution_permission_required',executed:false};
+  if (operation === 'examples') return findCodeExamples(data.topic ?? instruction,data.limit ?? 3);
+  if (operation === 'experience') return summarizeExperience(data.records ?? [],data.limit ?? 10);
+  if (operation === 'cycle') return runDevelopmentCycle({...data,instruction:data.topic ?? instruction},{generateChanges:context.generateChanges ?? generateCodeChanges,prepareChanges,runChecks:context.runChecks ?? (context.allowIsolatedExecution===true ? checkNodeProposal : undefined)});
+  if (operation === 'diagnose_and_fix') return runDevelopmentCycle({...data,instruction:data.topic ?? instruction},{generateChanges:context.generateChanges ?? generateCodeChanges,prepareChanges,runChecks:context.runChecks ?? (context.allowIsolatedExecution===true ? checkNodeProposal : undefined)});
+  if (operation === 'develop') return developCode({...data,instruction:data.topic ?? instruction},{generateChanges:context.generateChanges,prepareChanges,runChecks:context.runChecks});
+  if (operation === 'engineering') return engineeringBrief({instruction:data.topic ?? instruction,files:data.files ?? [],diagnostics:data.diagnostics ?? [],limit:data.limit ?? 5});
+  if (operation === 'knowledge') return getCodeKnowledge({topic:data.topic ?? instruction,limit:data.limit ?? 5});
+  if (operation === 'architecture') return mapArchitecture(data.files);
+  if (operation === 'reason') return rankSolutions(data.options);
+  if (operation === 'debug') return diagnoseFailures(data.diagnostics);
+  if (operation === 'refactor_plan') return planRefactor(data.changes);
+  if (operation === 'verify') return verifyCodeChange(data);
   if (operation === 'inspect') {
     if (!Array.isArray(data.files)) return { status: 'requires_project_files', instruction, executed: false };
     return analyzeProject(data.files);

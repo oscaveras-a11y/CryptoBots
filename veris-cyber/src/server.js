@@ -24,13 +24,13 @@ export function createServer({ token = process.env.CYBER_API_TOKEN, codeConfig =
   const localModel=languageModel ? createLocalModel(languageModel) : null;
   const researchRetriever=networkMode==='offline'?async()=>{throw new Error('external_research_disabled');}:networkMode==='tor'?(query,options)=>searchMultipleSources(query,{...options,fetchImpl:createTorFetch()}):searchMultipleSources;
   const actionService=codeConfig?createLocalActionService(codeConfig):null;
-  const verisCore = connectAgents(new VerisCore({actionExecutor:actionService?.execute??null,actionAuthorizer:actionService?.authorize??null,codeService:codeConfig ? createLocalCodeService(codeConfig) : null,mindResponder:localModel,researchRetriever}));
+  const verisCore = connectAgents(new VerisCore({durableQueue:true,actionExecutor:actionService?.execute??null,actionAuthorizer:actionService?.authorize??null,codeService:codeConfig ? createLocalCodeService(codeConfig) : null,mindResponder:localModel,researchRetriever}));
   const server = http.createServer(async (req, res) => {
     const reply = (status, data) => {
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
       res.end(JSON.stringify(data));
     };
-    const assets = {'/':['index.html','text/html; charset=utf-8'],'/dashboard.js':['dashboard.js','text/javascript; charset=utf-8'],'/dashboard.css':['dashboard.css','text/css; charset=utf-8']};
+    const assets = {'/':['jarvis.html','text/html; charset=utf-8'],'/legacy':['index.html','text/html; charset=utf-8'],'/jarvis.js':['jarvis.js','text/javascript; charset=utf-8'],'/jarvis.css':['jarvis.css','text/css; charset=utf-8'],'/dashboard.js':['dashboard.js','text/javascript; charset=utf-8'],'/dashboard.css':['dashboard.css','text/css; charset=utf-8']};
     if(req.method==='GET' && Object.hasOwn(assets,req.url)){
       const [file,type]=assets[req.url];
       res.writeHead(200,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"});
@@ -42,6 +42,23 @@ export function createServer({ token = process.env.CYBER_API_TOKEN, codeConfig =
       if (denied) return reply(denied.status, {error: denied.error});
     }
     if (req.method === 'GET' && req.url === '/api/core/agents') return reply(200, { agents: verisCore.agents });
+    if (req.method === 'GET' && req.url === '/api/core/dashboard') {
+      const capabilities = verisCore.capabilities;
+      return reply(200, {
+        service: 'JARVIS',
+        timestamp: new Date().toISOString(),
+        agents: capabilities,
+        queue: verisCore.queueStats,
+        features: {
+          voiceInput: capabilities.find(agent => agent.name === 'voice')?.transcriptionReady === true,
+          voiceOutput: capabilities.find(agent => agent.name === 'voice')?.speechReady === true,
+          vision: capabilities.find(agent => agent.name === 'vision')?.ready === true,
+          localModel: !!localModel,
+          code: !!codeConfig
+        },
+        system: { status: 'server_reachable', metricsAvailable: false }
+      });
+    }
     if(req.method==='GET' && req.url==='/api/privacy')return reply(200,{networkMode,localTextGeneration:!!localModel,externalResearch:networkMode!=='offline',researchTransport:networkMode==='tor'?'tor_required':networkMode,cloudTextGeneration:false,anonymous:false,note:networkMode==='tor'?'Tor obrigatório para pesquisas; sem conexão direta alternativa. Anonimato não é garantido.':'Pesquisas diretas revelam IP e consulta aos serviços utilizados.'});
     if(req.method==='GET' && req.url==='/api/core/capabilities')return reply(200,{agents:verisCore.capabilities});
     const agentRoute=/^\/api\/core\/agents\/(sense|mind|memory|planner|research|vision|voice|code|cyber|action|guard|verify)\/tasks$/.exec(req.url);

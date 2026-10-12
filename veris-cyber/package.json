@@ -11,9 +11,14 @@
     "model:start": "node scripts/start-local-model.js",
     "chat": "node scripts/chat-local.js",
     "action": "node scripts/action-local.js",
-    "action-access": "node scripts/code-access.js"
+    "action-access": "node scripts/code-access.js",
+    "windows:diagnostics": "node scripts/windows-diagnostics.js",
+    "training:ui": "node scripts/training-manager.js"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0"
   }
 }

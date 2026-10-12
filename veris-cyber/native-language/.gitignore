@@ -1,0 +1,8 @@
+# Native-language generated files
+.venv/
+__pycache__/
+*.pyc
+*.pt
+*.pth
+*.safetensors
+*.gguf

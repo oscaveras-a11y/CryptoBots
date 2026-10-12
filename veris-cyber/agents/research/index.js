@@ -41,3 +41,13 @@ export default async function research({ instruction = '', message = '', data = 
     limitations: validSources.length ? ['source_content_not_independently_verified'] : ['no_usable_sources']
   };
 }
+
+// Rank supplied sources for investigation without equating relevance with truth.
+export function rankResearchEvidence(query,sources=[]){
+ if(!isText(query)||!Array.isArray(sources))throw new TypeError('invalid_research_ranking');
+ const tokens=[...new Set(query.toLocaleLowerCase('pt-BR').match(/[\p{L}\p{N}]{3,}/gu)??[])].slice(0,30);
+ return assessSources(sources).filter(s=>s.valid).map(s=>{
+  const body=(s.title+' '+s.excerpt).toLocaleLowerCase('pt-BR');
+  return {...s,relevance:tokens.length?tokens.filter(t=>body.includes(t)).length/tokens.length:0};
+ }).sort((a,b)=>b.relevance-a.relevance||a.index-b.index);
+}
