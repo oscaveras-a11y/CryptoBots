@@ -33,3 +33,19 @@ class Market:
         if len(values) < 100 or any(v <= 0 for v in values):
             raise RuntimeError("Histórico insuficiente ou inválido: " + symbol)
         return values
+
+    def ohlcv(self, symbol, limit=350):
+        """Completed hourly candles only; never train on unfinished current bar."""
+        from time import time
+        from trader.strategy import Candle
+        rows = self.get("klines", {"symbol":symbol,"interval":"1h","limit":limit})
+        now_ms = int(time()*1000)
+        closed = [row for row in rows if int(row[6]) < now_ms]
+        if len(closed) < 180:
+            raise RuntimeError("Historico fechado insuficiente: "+symbol)
+        candles = [Candle(float(r[4]),float(r[2]),float(r[3]),float(r[5]))
+                   for r in closed]
+        for c in candles:
+            if c.low <= 0 or c.high < c.low or not c.low <= c.close <= c.high or c.volume < 0:
+                raise RuntimeError("Candle invalido: "+symbol)
+        return candles
