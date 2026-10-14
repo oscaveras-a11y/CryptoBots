@@ -50,3 +50,9 @@ python paper_run.py --prices prices.json --output data/paper_result.json --capit
 ```
 
 O arquivo de saída é salvo atomicamente para evitar JSON incompleto. **Não é recuperação completa de posições**: o replay reinicia do começo e não faz ordens, nem sincroniza com corretora. A série é tratada como um único par virtual USDT. Para operar em múltiplos pares simultaneamente com capital compartilhado, é necessária uma camada adicional de orquestração.
+
+## Capital compartilhado entre robôs
+
+O módulo `trader/capital.py` implementa um coordenador de saldo compartilhado com `Decimal` e travamento por thread. Cada robô solicita uma reserva do saldo livre; compras confirmadas consomem essa reserva e vendas confirmadas devolvem o valor líquido ao caixa comum. Reservas canceladas liberam o valor. O padrão preserva 1% do saldo livre para custos e limita uma nova reserva a 25% do saldo livre no momento da solicitação (ambos configuráveis); não há divisão fixa por robô.
+
+**Importante:** esse coordenador é **somente memória, para protótipo/simulação**. Ainda não é seguro para ordens reais: reinicializações perdem reservas, múltiplos processos não compartilham o travamento, e não existe conciliação automática de ordens abertas, saldos bloqueados, fills parciais, taxas em outros ativos ou execução idempotente. `commit_buy` e `credit_sell` só devem ser chamados após confirmação independente de execução pela corretora. A integração à Binance real permanece desabilitada; nunca cadastre chaves de produção para usar esse módulo sem a camada transacional persistente e os testes de reconciliação.
