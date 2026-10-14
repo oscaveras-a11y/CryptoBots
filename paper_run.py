@@ -2,7 +2,6 @@
 import argparse
 import json
 import os
-from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -18,10 +17,13 @@ def replay(prices, genome, capital="100", max_allocation="0.10"):
     portfolio = PaperPortfolio(limits)
     symbol = "SIMUSDT"
     stopped = None
+    last_price = dec(prices[genome.slow])
+    entry = None
     for i in range(genome.slow, len(prices)):
         price = dec(prices[i])
         marks = {symbol: price}
-        day = (datetime(2026, 1, 1, tzinfo=timezone.utc)).date().isoformat()
+        day = f"SIM-DAY-{i//24:06d}"
+        last_price = price
         fast = sum(map(dec, prices[i-genome.fast:i])) / genome.fast
         slow = sum(map(dec, prices[i-genome.slow:i])) / genome.slow
         held = portfolio.holdings.get(symbol, Decimal(0)) > 0
@@ -32,16 +34,18 @@ def replay(prices, genome, capital="100", max_allocation="0.10"):
             if held:
                 portfolio.sell(symbol, price, marks, day)
             break
-        if held and fast <= slow:
+        if held and (fast <= slow or price <= entry*(1-dec(genome.stop)) or price >= entry*(1+dec(genome.take))):
             portfolio.sell(symbol, price, marks, day)
+            entry = None
         elif not held and fast > slow:
             portfolio.buy(symbol, price, marks, day)
+            entry = price
     return {
         "mode":"OFFLINE_PAPER",
         "quote_currency":"USDT_SIMULATED",
         "cash":str(portfolio.cash),
         "holdings":{k:str(v) for k,v in portfolio.holdings.items()},
-        "equity":str(portfolio.equity({symbol:dec(prices[-1])})),
+        "equity":str(portfolio.equity({symbol:last_price})),
         "trades":portfolio.trades,
         "stopped":stopped,
         "warning":"Nao sao ordens reais nem resultados futuros. Nao e valor em BRL."
