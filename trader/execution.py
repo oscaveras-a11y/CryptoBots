@@ -120,3 +120,23 @@ class BinanceSpotTestnet:
             raise ValueError('Invalid quantity')
         # This endpoint validates an order but does not execute it.
         return self.request('order/test', {'symbol':symbol,'side':side,'type':'MARKET','quantity':str(qty)}, method='POST', signed=True)
+
+    def place_testnet_order(self, symbol, side, quantity):
+        """EXECUTES a fictitious MARKET order on Binance Spot Testnet ONLY.
+
+        Caller must explicitly authorize the action. Uses testnet credentials.
+        """
+        if side not in ('BUY','SELL') or not symbol.endswith('USDT'):
+            raise ValueError('Only USDT spot orders supported')
+        qty = dec(quantity)
+        if qty <= 0:
+            raise ValueError('Invalid quantity')
+        return self.request('order', {'symbol':symbol,'side':side,
+                            'type':'MARKET','quantity':str(qty),
+                            'newOrderRespType':'FULL'}, method='POST', signed=True)
+
+    def order_status(self, symbol, order_id):
+        if not symbol.endswith('USDT') or int(order_id) <= 0:
+            raise ValueError('Invalid testnet order reference')
+        return self.request('order', {'symbol':symbol,'orderId':int(order_id)},
+                            signed=True)
