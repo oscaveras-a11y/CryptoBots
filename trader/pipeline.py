@@ -16,6 +16,8 @@ def evaluate(candles_by_symbol, capital="100", bots=20, generations=8, seed=42,
         raise ValueError("No candles")
     if Decimal(str(capital)) <= 0:
         raise ValueError("Capital must be positive")
+    if len({len(c) for c in candles_by_symbol.values()}) != 1:
+        raise ValueError("Aligned equal-length candle histories required")
     data = {}
     for symbol, candles in candles_by_symbol.items():
         if len(candles) < 120:
