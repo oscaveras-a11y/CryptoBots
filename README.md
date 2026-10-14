@@ -40,3 +40,13 @@ A ordem usa `/api/v3/order/test`: **é validada, mas não executada nem mesmo no
 - Implementados: backtest evolutivo, teste automatizado, consulta pública de candles, carteira virtual isolada, assinatura de API de teste, validação de ordem de teste, livro fiscal e CSV.
 - Pendentes antes de uso real: execução contínua, sincronização de ordens, persistência da carteira, filtros de tamanho mínimo e precisão da corretora, reconciliação e recuperação após queda, proteção de credenciais, conversão cambial BRL, integração automática com livro fiscal, cálculo fiscal revisado e testes extensivos em condições adversas.
 - Não forneça CPF, chave secreta nem credenciais reais em mensagens ou commits.
+
+## Replay de carteira com arquivo local
+
+Crie um arquivo `prices.json` contendo uma lista JSON com pelo menos 100 preços positivos, em ordem cronológica. Depois execute:
+
+```powershell
+python paper_run.py --prices prices.json --output data/paper_result.json --capital 100
+```
+
+O arquivo de saída é salvo atomicamente para evitar JSON incompleto. **Não é recuperação completa de posições**: o replay reinicia do começo e não faz ordens, nem sincroniza com corretora. A série é tratada como um único par virtual USDT. Para operar em múltiplos pares simultaneamente com capital compartilhado, é necessária uma camada adicional de orquestração.
