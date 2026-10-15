@@ -20,7 +20,7 @@ def save(bot, path):
         "symbols":bot.symbols,"initial_capital":str(p.limits.capital),
         "cash":str(p.cash),"holdings":{k:str(v) for k,v in p.holdings.items()},
         "start_of_day":str(p.start_of_day),"day":p.day,
-        "trades":p.trades,"entries":{k:str(v) for k,v in getattr(bot,"entries",{}).items()},
+        "trades":p.trades,"position_owners":bot.position_owners,"entries":{k:str(v) for k,v in getattr(bot,"entries",{}).items()},
         "cycle_number":bot.cycle_number,"approved":bot.approved,
         "genome":vars(bot.genome) if bot.genome else None,
         "last_candle":{k:list(v) for k,v in bot.last_candle.items()}
@@ -58,6 +58,7 @@ def load(bot, path):
     p.day=state["day"]
     p.trades=state["trades"]
     bot.entries={k:float(v) for k,v in state["entries"].items()}
+    bot.position_owners=state.get("position_owners",{})
     bot.cycle_number=int(state["cycle_number"])
     bot.approved=bool(state["approved"])
     bot.genome=IndicatorGenome(**state["genome"]) if state["genome"] else None
