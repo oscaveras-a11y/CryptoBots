@@ -18,13 +18,15 @@ from trader.execution import Limits, PaperPortfolio
 from trader.indicator_evolution import evolve_indicators, IndicatorGenome
 from trader.knowledge import market_profile
 from trader.strategy import trading_signal
+from trader.paper_state import save as save_state, load as load_state
 
 LOG = logging.getLogger("cryptobots.autonomous")
 
 
 class AutonomousPaperBot:
     def __init__(self, market=None, symbols=None, capital="100",
-                 bots=12, generations=5, seed=42, retrain_cycles=24):
+                 bots=12, generations=5, seed=42, retrain_cycles=24,
+                 state_path=None):
         if bots < 2 or generations < 1 or retrain_cycles < 1:
             raise ValueError("Invalid evolution configuration")
         self.market = market if market is not None else Market()
@@ -37,6 +39,14 @@ class AutonomousPaperBot:
         self.approved = False
         self.last_candle = {}
         self.last_report = None
+        self.state_path = state_path
+        self.entries = {}
+        if state_path:
+            load_state(self,state_path)
+
+    def checkpoint(self):
+        if self.state_path:
+            save_state(self,self.state_path)
 
     def cycle(self):
         # Fetch all histories before mutating any portfolio state.
@@ -51,6 +61,7 @@ class AutonomousPaperBot:
             LOG.info("research approved=%s winner=%s",self.approved,report["winner"])
         self.cycle_number += 1
         if not self.approved or self.genome is None:
+            self.checkpoint()
             return {"status":"REJECTED_HOLDOUT","cycle":self.cycle_number,
                     "trades":[]}
         prices = {symbol:candles[-1].close for symbol,candles in data.items()}
@@ -90,6 +101,8 @@ class AutonomousPaperBot:
                     decisions.append({"symbol":symbol,"action":"BUY","reason":"CONFIRMED_SIGNAL"})
                 except (ValueError,RuntimeError) as exc:
                     decisions.append({"symbol":symbol,"action":"WAIT","reason":str(exc)})
+            self.checkpoint()
+        self.checkpoint()
         return {"status":"PAPER_ACTIVE","cycle":self.cycle_number,
                 "equity":str(self.portfolio.equity(prices)),
                 "decisions":decisions,"trades":self.portfolio.trades[-10:]}
@@ -116,10 +129,13 @@ def main():
     parser.add_argument("--interval",type=int,default=3600)
     parser.add_argument("--capital",default="100")
     parser.add_argument("--symbols",nargs="+",default=["BTCUSDT","ETHUSDT"])
+    parser.add_argument("--state",default="data/paper-state.json",
+                        help="Persistent local paper-state path")
     args=parser.parse_args()
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
-    bot=AutonomousPaperBot(symbols=args.symbols,capital=args.capital)
+    bot=AutonomousPaperBot(symbols=args.symbols,capital=args.capital,
+                           state_path=args.state)
     bot.run(interval=args.interval,once=args.once)
 
 
