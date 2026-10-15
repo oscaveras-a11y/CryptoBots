@@ -75,6 +75,7 @@ class AutonomousPaperBot:
             if self.last_candle.get(symbol)==marker:
                 continue
             self.last_candle[symbol]=marker
+            self.checkpoint()
             profile=market_profile(candles)
             signal=trading_signal(candles,fast=self.genome.fast,slow=self.genome.slow)
             price=prices[symbol]
@@ -88,6 +89,8 @@ class AutonomousPaperBot:
                     signal["action"]=="SELL" or
                     profile["rsi"]<self.genome.rsi_sell_min):
                     self.portfolio.sell(symbol,price,prices,today)
+                    self.entries.pop(symbol,None)
+                    self.checkpoint()
                     decisions.append({"symbol":symbol,"action":"SELL","reason":"EXIT"})
             elif (signal["action"]=="BUY" and
                   profile["rsi"]<=self.genome.rsi_buy_max and
@@ -98,6 +101,7 @@ class AutonomousPaperBot:
                     if not hasattr(self,"entries"):
                         self.entries={}
                     self.entries[symbol]=price
+                    self.checkpoint()
                     decisions.append({"symbol":symbol,"action":"BUY","reason":"CONFIRMED_SIGNAL"})
                 except (ValueError,RuntimeError) as exc:
                     decisions.append({"symbol":symbol,"action":"WAIT","reason":str(exc)})
