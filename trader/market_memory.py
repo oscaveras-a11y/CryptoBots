@@ -51,21 +51,25 @@ class MarketMemory:
             (symbol,candle_id,"strategy:"+symbol,action,reason,price,
              json.dumps(details or {},ensure_ascii=False,allow_nan=False)))
 
-    def settle_prior(self,symbol,closed_candle_ids,latest_price,horizon=24):
-        """Evaluate decisions only after at least horizon later closed bars."""
-        if len(closed_candle_ids)<=horizon:
+    def settle_prior(self,symbol,horizon=24):
+        """Evaluate against the 24th subsequently observed distinct closed bar.
+
+        Only consecutive observations produce an hourly interpretation; gaps
+        mean this is a 24-observation outcome, not necessarily 24 clock hours.
+        """
+        rows=self.db.execute("""
+            SELECT candle_id,price FROM observations
+            WHERE symbol=? ORDER BY rowid""",(symbol,)).fetchall()
+        if len(rows)<=horizon:
             return
-        eligible=set(closed_candle_ids[:-horizon])
-        rows=self.db.execute(
-            "SELECT candle_id,price FROM decisions WHERE symbol=? AND outcome_24h_pct IS NULL",
-            (symbol,)).fetchall()
         with self.db:
-            for candle_id,entry_price in rows:
-                if candle_id in eligible:
-                    self.db.execute("""
+            for i in range(len(rows)-horizon):
+                candle_id,entry_price=rows[i]
+                exit_price=rows[i+horizon][1]
+                self.db.execute("""
                     UPDATE decisions SET outcome_24h_pct=?
                     WHERE symbol=? AND candle_id=? AND outcome_24h_pct IS NULL""",
-                    (round((latest_price/entry_price-1)*100,5),symbol,candle_id))
+                    (round((exit_price/entry_price-1)*100,5),symbol,candle_id))
 
     def summary(self,limit=20):
         rows=self.db.execute("""
@@ -79,9 +83,9 @@ class MarketMemory:
         return {"markets":[{"symbol":s,"direction":d,"change_24h_pct":c,
                             "relative_volume":v} for s,d,c,v in rows],
                 "decisions":[{"action":a,"count":n,
-                              "avg_observed_24h_change_pct":avg}
+                              "avg_observed_24_observation_change_pct":avg}
                              for a,n,avg in decisions],
-                "warning":"24h price movement is not realized trade PnL."}
+                "warning":"24 observations may span more than 24 hours; movement is not realized PnL."}
 
     def close(self):
         self.db.close()
