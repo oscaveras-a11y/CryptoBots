@@ -41,6 +41,7 @@ class AutonomousPaperBot:
         self.last_report = None
         self.state_path = state_path
         self.entries = {}
+        self.position_owners = {}
         if state_path:
             load_state(self,state_path)
 
@@ -90,8 +91,9 @@ class AutonomousPaperBot:
                     profile["rsi"]<self.genome.rsi_sell_min):
                     self.portfolio.sell(symbol,price,prices,today)
                     self.entries.pop(symbol,None)
+                    self.position_owners.pop(symbol,None)
                     self.checkpoint()
-                    decisions.append({"symbol":symbol,"action":"SELL","reason":"EXIT"})
+                    decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,"action":"SELL","reason":"EXIT"})
             elif (signal["action"]=="BUY" and
                   profile["rsi"]<=self.genome.rsi_buy_max and
                   profile["atr_percent"]<=self.genome.max_atr_percent and
@@ -101,8 +103,9 @@ class AutonomousPaperBot:
                     if not hasattr(self,"entries"):
                         self.entries={}
                     self.entries[symbol]=price
+                    self.position_owners[symbol]="strategy:"+symbol
                     self.checkpoint()
-                    decisions.append({"symbol":symbol,"action":"BUY","reason":"CONFIRMED_SIGNAL"})
+                    decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,"action":"BUY","reason":"CONFIRMED_SIGNAL"})
                 except (ValueError,RuntimeError) as exc:
                     decisions.append({"symbol":symbol,"action":"WAIT","reason":str(exc)})
             self.checkpoint()
