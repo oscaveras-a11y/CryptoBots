@@ -5,6 +5,7 @@ simulates orders. No exchange credentials, no production or testnet orders.
 A process supervisor (Task Scheduler/systemd) is required for restart on crash.
 """
 import argparse
+import hashlib
 import json
 import logging
 import os
@@ -19,6 +20,7 @@ from trader.indicator_evolution import evolve_indicators, IndicatorGenome
 from trader.knowledge import market_profile
 from trader.strategy import trading_signal
 from trader.decision_context import entry_context
+from trader.market_memory import MarketMemory
 from trader.paper_state import save as save_state, load as load_state
 
 LOG = logging.getLogger("cryptobots.autonomous")
@@ -27,7 +29,7 @@ LOG = logging.getLogger("cryptobots.autonomous")
 class AutonomousPaperBot:
     def __init__(self, market=None, symbols=None, capital="100",
                  bots=12, generations=5, seed=42, retrain_cycles=24,
-                 state_path=None):
+                 state_path=None, memory_path=None):
         if bots < 2 or generations < 1 or retrain_cycles < 1:
             raise ValueError("Invalid evolution configuration")
         self.market = market if market is not None else Market()
@@ -45,10 +47,30 @@ class AutonomousPaperBot:
         self.position_owners = {}
         if state_path:
             load_state(self,state_path)
+        self.memory = MarketMemory(memory_path) if memory_path else None
 
     def checkpoint(self):
         if self.state_path:
             save_state(self,self.state_path)
+
+    def remember_market(self, data):
+        if self.memory is None:
+            return
+        btc = data.get("BTCUSDT")
+        if btc is None:
+            btc = self.market.ohlcv("BTCUSDT",350)
+        btc_change = (btc[-1].close / btc[-25].close - 1) * 100
+        for symbol,candles in data.items():
+            marker = self.candle_key(candles)
+            context = entry_context(symbol,candles,btc_change)
+            self.memory.observe(symbol,marker,context["observation"],candles[-1].close)
+            self.memory.settle_prior(symbol)
+
+    @staticmethod
+    def candle_key(candles):
+        # Distinct completed candle fingerprint; no exchange timestamp in Candle.
+        payload = repr([(c.close,c.high,c.low,c.volume) for c in candles[-2:]])
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def cycle(self):
         # Fetch all histories before mutating any portfolio state.
@@ -63,9 +85,11 @@ class AutonomousPaperBot:
             LOG.info("research approved=%s winner=%s",self.approved,report["winner"])
         self.cycle_number += 1
         if not self.approved or self.genome is None:
+            self.remember_market(data)
             self.checkpoint()
             return {"status":"REJECTED_HOLDOUT","cycle":self.cycle_number,
                     "trades":[]}
+        self.remember_market(data)
         prices = {symbol:candles[-1].close for symbol,candles in data.items()}
         today = datetime.now(timezone.utc).date().isoformat()
         decisions=[]
@@ -87,6 +111,7 @@ class AutonomousPaperBot:
             signal=trading_signal(candles,fast=self.genome.fast,slow=self.genome.slow)
             price=prices[symbol]
             position=self.portfolio.holdings.get(symbol,0)
+            prior_count=len(decisions)
             if position:
                 # Paper stop/take and sell signal; exits remain permitted if loss cap hit.
                 # Entry basis is recorded on each buy for stop/take.
@@ -120,6 +145,13 @@ class AutonomousPaperBot:
                     decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,"action":"BUY","reason":"CONFIRMED_SIGNAL"})
                 except (ValueError,RuntimeError) as exc:
                     decisions.append({"symbol":symbol,"action":"WAIT","reason":str(exc)})
+            if self.memory is not None:
+                decision = decisions[-1] if len(decisions)>prior_count else {
+                    "action":"WAIT","reason":"NO_ENTRY_OR_EXIT_SIGNAL"}
+                self.memory.decide(symbol,self.candle_key(candles),
+                                   decision["action"],decision["reason"],price,
+                                   {"signal":signal,"profile":profile,
+                                    "details":decision.get("details",[])})
             self.checkpoint()
         self.checkpoint()
         return {"status":"PAPER_ACTIVE","cycle":self.cycle_number,
@@ -148,13 +180,14 @@ def main():
     parser.add_argument("--interval",type=int,default=3600)
     parser.add_argument("--capital",default="100")
     parser.add_argument("--symbols",nargs="+",default=["BTCUSDT","ETHUSDT"])
+    parser.add_argument("--memory",default="data/market-memory.sqlite3")
     parser.add_argument("--state",default="data/paper-state.json",
                         help="Persistent local paper-state path")
     args=parser.parse_args()
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
     bot=AutonomousPaperBot(symbols=args.symbols,capital=args.capital,
-                           state_path=args.state)
+                           state_path=args.state,memory_path=args.memory)
     bot.run(interval=args.interval,once=args.once)
 
 
