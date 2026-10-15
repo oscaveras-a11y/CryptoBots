@@ -18,6 +18,7 @@ from trader.execution import Limits, PaperPortfolio
 from trader.indicator_evolution import evolve_indicators, IndicatorGenome
 from trader.knowledge import market_profile
 from trader.strategy import trading_signal
+from trader.decision_context import entry_context
 from trader.paper_state import save as save_state, load as load_state
 
 LOG = logging.getLogger("cryptobots.autonomous")
@@ -68,6 +69,11 @@ class AutonomousPaperBot:
         prices = {symbol:candles[-1].close for symbol,candles in data.items()}
         today = datetime.now(timezone.utc).date().isoformat()
         decisions=[]
+        btc_data = data.get("BTCUSDT")
+        if btc_data is None and any(s != "BTCUSDT" for s in data):
+            btc_data = self.market.ohlcv("BTCUSDT",350)
+        btc_change = ((btc_data[-1].close / btc_data[-25].close - 1) * 100
+                      if btc_data is not None else None)
         for symbol in sorted(data):
             candles=data[symbol]
             # Only act once on each completed hourly candle.
@@ -98,6 +104,12 @@ class AutonomousPaperBot:
                   profile["rsi"]<=self.genome.rsi_buy_max and
                   profile["atr_percent"]<=self.genome.max_atr_percent and
                   profile["regime"]!="HIGH_VOLATILITY"):
+                context = entry_context(symbol,candles,btc_change)
+                if not context["allow_buy"]:
+                    decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,
+                                      "action":"WAIT","reason":"MARKET_CONTEXT",
+                                      "details":context["reasons"]})
+                    continue
                 try:
                     self.portfolio.buy(symbol,price,prices,today)
                     if not hasattr(self,"entries"):
