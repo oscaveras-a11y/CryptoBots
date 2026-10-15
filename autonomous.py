@@ -86,6 +86,10 @@ class AutonomousPaperBot:
         self.cycle_number += 1
         if not self.approved or self.genome is None:
             self.remember_market(data)
+            if self.memory is not None:
+                for symbol,candles in data.items():
+                    self.memory.decide(symbol,self.candle_key(candles),
+                                       "WAIT","REJECTED_HOLDOUT",candles[-1].close)
             self.checkpoint()
             return {"status":"REJECTED_HOLDOUT","cycle":self.cycle_number,
                     "trades":[]}
@@ -134,6 +138,11 @@ class AutonomousPaperBot:
                     decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,
                                       "action":"WAIT","reason":"MARKET_CONTEXT",
                                       "details":context["reasons"]})
+                    if self.memory is not None:
+                        self.memory.decide(symbol,self.candle_key(candles),
+                                           "WAIT","MARKET_CONTEXT",price,
+                                           {"reasons":context["reasons"]})
+                    self.checkpoint()
                     continue
                 try:
                     self.portfolio.buy(symbol,price,prices,today)
