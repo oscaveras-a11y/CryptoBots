@@ -62,3 +62,12 @@ O módulo `trader/capital.py` implementa um coordenador de saldo compartilhado c
 O módulo `trader/strategy.py` acrescenta uma estratégia interpretável com cruzamento de médias móveis, confirmação de volume e filtro de volatilidade. A função `trading_signal` recebe candles OHLCV **já fechados** e devolve `BUY`, `SELL` ou `WAIT` com motivo auditável. Ela **não está conectada ao motor evolutivo nem à execução real**: é um componente de pesquisa isolado. O filtro `eligible_market_order` faz somente uma verificação local parcial de `LOT_SIZE`, `MARKET_LOT_SIZE`, `MIN_NOTIONAL` e `NOTIONAL`; não substitui validação da corretora nem considera todas as regras dinâmicas.
 
 Fundamentos: documentação oficial da Binance (https://github.com/binance/binance-spot-api-docs/blob/master/filters.md) e pesquisa sobre overfitting de backtests (https://doi.org/10.1016/j.knosys.2024.112477). Antes de selecionar parâmetros ou liberar capital, são necessários custos realistas, teste fora da amostra e validação em múltiplos períodos de mercado. Sinal técnico não é garantia de retorno.
+
+
+## Execucao autonoma em simulacao
+
+No Windows, use `iniciar-paper-windows.cmd` depois de instalar Python 3.11+.
+O script reinicia o processo caso encerre, mas nao inicia automaticamente apos reiniciar o PC.
+O saldo ficticio fica em `data/paper-state.json`, ignorado pelo Git.
+Nao rode duas instancias simultaneas nem apague o estado para continuar uma carteira existente.
+As operacoes sao apenas simuladas e nao garantem lucro. O saldo 100 e virtual, nao R$100.
