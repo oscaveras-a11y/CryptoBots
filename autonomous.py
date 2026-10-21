@@ -89,6 +89,8 @@ class AutonomousPaperBot:
                 self.genome = None
             LOG.info("research approved=%s winner=%s",self.approved,report["winner"])
         self.cycle_number += 1
+        if self.genome is None and any(q > 0 for q in self.portfolio.holdings.values()):
+            raise RuntimeError("Open paper positions lack an exit policy; manual review required")
         if not self.approved and self.genome is None:
             self.remember_market(data)
             if self.memory is not None:
