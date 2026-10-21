@@ -81,10 +81,15 @@ class AutonomousPaperBot:
                                        seed=self.seed+self.cycle_number)
             self.last_report = report
             self.approved = report["approved_for_paper"]
-            self.genome = IndicatorGenome(**report["winner"]) if self.approved else None
+            # Keep an existing exit policy for open positions even if new
+            # entries fail validation. Never strand holdings without exits.
+            if self.approved:
+                self.genome = IndicatorGenome(**report["winner"])
+            elif not any(q > 0 for q in self.portfolio.holdings.values()):
+                self.genome = None
             LOG.info("research approved=%s winner=%s",self.approved,report["winner"])
         self.cycle_number += 1
-        if not self.approved or self.genome is None:
+        if not self.approved and self.genome is None:
             self.remember_market(data)
             if self.memory is not None:
                 for symbol,candles in data.items():
@@ -129,7 +134,7 @@ class AutonomousPaperBot:
                     self.position_owners.pop(symbol,None)
                     self.checkpoint()
                     decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,"action":"SELL","reason":"EXIT"})
-            elif (signal["action"]=="BUY" and
+            elif (self.approved and signal["action"]=="BUY" and
                   profile["rsi"]<=self.genome.rsi_buy_max and
                   profile["atr_percent"]<=self.genome.max_atr_percent and
                   profile["regime"]!="HIGH_VOLATILITY"):
@@ -163,7 +168,8 @@ class AutonomousPaperBot:
                                     "details":decision.get("details",[])})
             self.checkpoint()
         self.checkpoint()
-        return {"status":"PAPER_ACTIVE","cycle":self.cycle_number,
+        return {"status":"PAPER_ACTIVE" if self.approved else "EXIT_ONLY",
+                "cycle":self.cycle_number,
                 "equity":str(self.portfolio.equity(prices)),
                 "decisions":decisions,"trades":self.portfolio.trades[-10:]}
 
