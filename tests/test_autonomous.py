@@ -38,3 +38,36 @@ class AutonomousTests(unittest.TestCase):
             second=bot.cycle()
         self.assertEqual(first["status"],"PAPER_ACTIVE")
         self.assertEqual(second["decisions"],[])
+
+    def test_rejected_retraining_preserves_exit_policy(self):
+        from decimal import Decimal
+        from trader.indicator_evolution import IndicatorGenome
+        bot=AutonomousPaperBot(market=FakeMarket(),symbols=["BTCUSDT"],
+                               bots=2,generations=1,retrain_cycles=1)
+        bot.genome=IndicatorGenome(5,15,65,30,5,.02,.04)
+        bot.approved=True
+        bot.portfolio.holdings["BTCUSDT"]=Decimal("0.1")
+        bot.portfolio.cash=Decimal("90")
+        bot.entries["BTCUSDT"]=200.0
+        with patch("autonomous.evolve_indicators",return_value={
+            "approved_for_paper":False,
+            "winner":{"fast":5,"slow":15,"rsi_buy_max":65,
+                      "rsi_sell_min":30,"max_atr_percent":5,
+                      "stop":.02,"take":.04}}):
+            result=bot.cycle()
+        self.assertEqual(result["status"],"EXIT_ONLY")
+        self.assertEqual(bot.portfolio.holdings["BTCUSDT"],0)
+        self.assertTrue(any(d["action"]=="SELL" for d in result["decisions"]))
+
+    def test_open_position_without_exit_policy_fails_closed(self):
+        from decimal import Decimal
+        bot=AutonomousPaperBot(market=FakeMarket(),symbols=["BTCUSDT"],
+                               bots=2,generations=1)
+        bot.portfolio.holdings["BTCUSDT"]=Decimal("0.1")
+        with patch("autonomous.evolve_indicators",return_value={
+            "approved_for_paper":False,
+            "winner":{"fast":5,"slow":15,"rsi_buy_max":65,
+                      "rsi_sell_min":30,"max_atr_percent":5,
+                      "stop":.02,"take":.04}}):
+            with self.assertRaisesRegex(RuntimeError,"exit policy"):
+                bot.cycle()
