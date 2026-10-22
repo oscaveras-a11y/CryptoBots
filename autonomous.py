@@ -83,8 +83,10 @@ class AutonomousPaperBot:
             self.approved = report["approved_for_paper"]
             # Keep an existing exit policy for open positions even if new
             # entries fail validation. Never strand holdings without exits.
-            if self.approved:
+            if self.approved and not any(q > 0 for q in self.portfolio.holdings.values()):
                 self.genome = IndicatorGenome(**report["winner"])
+            elif self.approved and self.genome is None:
+                raise RuntimeError("Open paper positions lack an exit policy; manual review required")
             elif not any(q > 0 for q in self.portfolio.holdings.values()):
                 self.genome = None
             LOG.info("research approved=%s winner=%s",self.approved,report["winner"])
