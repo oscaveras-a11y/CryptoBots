@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Testar endpoint publico da Testnet
-        run: python -m unittest tests.test_testnet_connectivity -v
+        run: python -m unittest discover -s tests -p 'test_testnet_connectivity.py' -v
       - name: Validar credenciais e consultar saldo ficticio
         if: ${{ env.BINANCE_TESTNET_API_KEY != '' && env.BINANCE_TESTNET_API_SECRET != '' }}
         run: python testnet_connect.py
