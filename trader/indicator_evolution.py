@@ -92,6 +92,7 @@ def evolve_indicators(data, capital=100.0, bots=20, generations=8, seed=42):
     splits={s:int(len(c)*.7) for s,c in data.items()}
     population=[_random(rng) for _ in range(bots)]
     history=[]
+    best_seen=None
     def score(g):
         results=[replay(c[:splits[s]],g,capital)
                  for s,c in data.items()]
@@ -100,12 +101,17 @@ def evolve_indicators(data, capital=100.0, bots=20, generations=8, seed=42):
     for generation in range(generations):
         ranked=sorted(((score(g),g) for g in population),
                       key=lambda item:item[0],reverse=True)
+        if best_seen is None or ranked[0][0]>best_seen[0]:
+            best_seen=ranked[0]
         history.append({"generation":generation+1,
                         "best_train_score":round(ranked[0][0],4)})
         champions=[g for _,g in ranked[:max(1,bots//4)]]
         population=champions+[_mutate(rng.choice(champions),rng)
                               for _ in range(bots-len(champions))]
-    winner=max(population,key=score)
+    # The final mutated population is not itself evaluated by the loop.
+    # Compare it against the best evaluated genome to avoid losing the elite.
+    final_best=max(((score(g),g) for g in population),key=lambda item:item[0])
+    winner=max((best_seen,final_best),key=lambda item:item[0])[1]
     validation={s:replay(c,winner,capital,start=splits[s])
                 for s,c in data.items()}
     approved=all(r["trades"]>0 and not r["dead"] and
