@@ -114,9 +114,28 @@ def evolve_indicators(data, capital=100.0, bots=20, generations=8, seed=42):
     winner=max((best_seen,final_best),key=lambda item:item[0])[1]
     validation={s:replay(c,winner,capital,start=splits[s])
                 for s,c in data.items()}
+    # Frozen-genome walk-forward evaluation on three chronological slices
+    # of unseen data; each window has its own simulated starting capital.
+    walk_forward={}
+    for symbol,candles in data.items():
+        first=splits[symbol]
+        remaining=len(candles)-first
+        boundaries=[first+(remaining*i)//3 for i in range(4)]
+        windows=[]
+        for i in range(3):
+            start,end=boundaries[i],boundaries[i+1]
+            result=replay(candles[:end],winner,capital,start=start)
+            windows.append({"start_index":start,"end_index_exclusive":end,
+                            **result})
+        walk_forward[symbol]=windows
     approved=all(r["trades"]>0 and not r["dead"] and
-                 r["equity"]>=capital for r in validation.values())
+                 r["equity"]>=capital for r in validation.values()) and all(
+                 sum(w["trades"]>0 for w in windows)>=2 and
+                 all(not w["dead"] for w in windows) and
+                 sum(w["equity"]>=capital for w in windows)>=2
+                 for windows in walk_forward.values())
     return {"mode":"PAPER_ONLY","winner":asdict(winner),
             "generations":history,"out_of_sample":validation,
+            "walk_forward":walk_forward,
             "approved_for_paper":approved,
             "warning":"Indicator evolution is experimental. Holdout is not live evidence."}
