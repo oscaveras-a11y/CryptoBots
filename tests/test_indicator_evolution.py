@@ -22,6 +22,17 @@ class IndicatorEvolutionTests(unittest.TestCase):
         self.assertEqual(evolve_indicators(data,bots=4,generations=2,seed=1),
                          evolve_indicators(data,bots=4,generations=2,seed=1))
 
+    def test_winner_never_worse_than_best_evaluated_generation(self):
+        from trader.indicator_evolution import replay, IndicatorGenome
+        candles=self.candles()
+        result=evolve_indicators({"SYNTHUSDT":candles},bots=8,generations=5,seed=9)
+        genome=IndicatorGenome(**result["winner"])
+        training=candles[:int(len(candles)*.7)]
+        performance=replay(training,genome)
+        winner_score=performance["equity"]-100*performance["drawdown"]-10*int(performance["dead"])
+        self.assertGreaterEqual(winner_score+0.0001,
+                                max(g["best_train_score"] for g in result["generations"]))
+
     def test_short_history_rejected(self):
         with self.assertRaises(ValueError):
             evolve_indicators({"SYNTHUSDT":self.candles(90)},bots=4,generations=2)
