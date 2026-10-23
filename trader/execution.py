@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 TESTNET = 'https://testnet.binance.vision/api/v3/'
 
@@ -96,6 +97,10 @@ class BinanceSpotTestnet:
             raise ValueError('Testnet credentials missing')
 
     def request(self, path, params=None, method='GET', signed=False):
+        if path not in ('ping', 'account', 'order/test', 'order'):
+            raise ValueError('Testnet API path not allowed')
+        if method not in ('GET', 'POST'):
+            raise ValueError('Unsupported request method')
         params = dict(params or {})
         if signed:
             params['timestamp'] = int(time.time()*1000)
@@ -106,8 +111,12 @@ class BinanceSpotTestnet:
         url = TESTNET + path + (('?' + payload) if method == 'GET' and payload else '')
         req = Request(url, data=payload.encode() if method != 'GET' else None,
                       headers={'X-MBX-APIKEY':self.key,'User-Agent':'CryptoEvolutionLab/1.0'}, method=method)
-        with urlopen(req, timeout=15) as response:
-            return json.load(response)
+        try:
+            with urlopen(req, timeout=15) as response:
+                return json.load(response)
+        except HTTPError as exc:
+            # Never include the request URL, signed query, key or response body.
+            raise RuntimeError('Binance Spot Testnet HTTP status %s' % exc.code) from None
 
     def account(self):
         return self.request('account', signed=True)
