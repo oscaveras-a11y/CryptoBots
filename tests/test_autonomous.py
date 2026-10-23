@@ -71,3 +71,24 @@ class AutonomousTests(unittest.TestCase):
                       "stop":.02,"take":.04}}):
             with self.assertRaisesRegex(RuntimeError,"exit policy"):
                 bot.cycle()
+
+    def test_approved_retraining_does_not_replace_open_position_exit_rules(self):
+        from decimal import Decimal
+        from trader.indicator_evolution import IndicatorGenome
+        bot=AutonomousPaperBot(market=FakeMarket(),symbols=["BTCUSDT"],
+                               bots=2,generations=1,retrain_cycles=1)
+        original=IndicatorGenome(5,15,65,30,5,.02,.04)
+        bot.genome=original
+        bot.approved=True
+        bot.portfolio.holdings["BTCUSDT"]=Decimal("0.1")
+        bot.portfolio.cash=Decimal("90")
+        bot.entries["BTCUSDT"]=200.0
+        changed={"fast":8,"slow":20,"rsi_buy_max":75,
+                 "rsi_sell_min":25,"max_atr_percent":7,
+                 "stop":.10,"take":.20}
+        with patch("autonomous.evolve_indicators",return_value={
+            "approved_for_paper":True,"winner":changed}):
+            result=bot.cycle()
+        self.assertEqual(result["status"],"PAPER_ACTIVE")
+        self.assertEqual(bot.genome,original)
+        self.assertTrue(any(d["action"]=="SELL" for d in result["decisions"]))
