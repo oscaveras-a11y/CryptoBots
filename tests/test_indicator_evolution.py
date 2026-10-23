@@ -33,6 +33,23 @@ class IndicatorEvolutionTests(unittest.TestCase):
         self.assertGreaterEqual(winner_score+0.0001,
                                 max(g["best_train_score"] for g in result["generations"]))
 
+    def test_walk_forward_has_three_ordered_disjoint_windows(self):
+        candles=self.candles(240)
+        result=evolve_indicators({"SYNTHUSDT":candles},bots=4,generations=2,seed=7)
+        windows=result["walk_forward"]["SYNTHUSDT"]
+        self.assertEqual(len(windows),3)
+        self.assertEqual(windows[0]["start_index"],168)
+        self.assertEqual(windows[-1]["end_index_exclusive"],240)
+        for left,right in zip(windows,windows[1:]):
+            self.assertEqual(left["end_index_exclusive"],right["start_index"])
+        self.assertEqual(result["approved_for_paper"],
+                         (result["out_of_sample"]["SYNTHUSDT"]["trades"]>0
+                          and not result["out_of_sample"]["SYNTHUSDT"]["dead"]
+                          and result["out_of_sample"]["SYNTHUSDT"]["equity"]>=100
+                          and sum(w["trades"]>0 for w in windows)>=2
+                          and all(not w["dead"] for w in windows)
+                          and sum(w["equity"]>=100 for w in windows)>=2))
+
     def test_short_history_rejected(self):
         with self.assertRaises(ValueError):
             evolve_indicators({"SYNTHUSDT":self.candles(90)},bots=4,generations=2)
