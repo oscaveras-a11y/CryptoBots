@@ -1,6 +1,7 @@
 """Binance Spot Testnet CLI. No production endpoints or real-money orders."""
 import argparse
 import json
+import sys
 from trader.execution import BinanceSpotTestnet
 
 
@@ -21,6 +22,14 @@ def main():
         p.error("Choose --account, --test-order or --execute")
     if a.execute and (not a.confirm_testnet or a.test_order):
         p.error("--execute requires --confirm-testnet and cannot combine with --test-order")
+    try:
+        run(a)
+    except (RuntimeError,ValueError) as exc:
+        print("FALHA: "+str(exc),file=sys.stderr)
+        raise SystemExit(1)
+
+
+def run(a):
     api=BinanceSpotTestnet()
     if a.account:
         account=api.account()
