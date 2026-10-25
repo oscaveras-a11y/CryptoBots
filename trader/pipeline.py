@@ -40,12 +40,10 @@ def evaluate(candles_by_symbol, capital="100", bots=20, generations=8, seed=42,
     positions = {}
     logs = []
     start = max(int(len(c)*.7) for c in candles_by_symbol.values())
-    # Equal length needed for chronological alignment in this basic offline replay.
-    lengths = {len(c) for c in candles_by_symbol.values()}
-    if len(lengths) != 1:
-        raise ValueError("Aligned equal-length candle histories required")
+    # Equal length (checked above) keeps this offline replay chronologically aligned.
+    total = len(next(iter(candles_by_symbol.values())))
     symbols = sorted(candles_by_symbol)
-    for i in range(start, lengths.pop()):
+    for i in range(start, total):
         for symbol in symbols:
             candles = candles_by_symbol[symbol]
             price = Decimal(str(candles[i].close))

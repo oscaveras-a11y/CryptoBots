@@ -29,6 +29,17 @@ python testnet.py --account
 python testnet.py --test-order --symbol BTCUSDT --side BUY --quantity 0.001
 ```
 
+Para conferir só a conexão (sem ordem), use `python testnet_connect.py`. Ele sincroniza o relógio com a Binance e, em caso de erro, mostra o código da Binance com uma dica. Os mais comuns são:
+
+| Código | Significado |
+|---|---|
+| `-2015` | Chave inválida, sem permissão ou IP não liberado. Use chave da **Testnet**, não da conta real. |
+| `-1022` | Secret errado. |
+| `-1021` | Relógio fora de sincronia. O cliente ressincroniza e tenta de novo uma vez. |
+| HTTP 451 | Região bloqueada para aquele IP. Os runners do GitHub ficam nos EUA, então isso é comum no workflow. |
+
+No GitHub Actions, o motivo da falha aparece como anotação no resumo da execução. Os dados públicos de mercado tentam de novo em 429/5xx e usam o espelho `data-api.binance.vision` quando `api.binance.com` está bloqueado.
+
 A ordem usa `/api/v3/order/test`: **é validada, mas não executada nem mesmo no saldo fictício**. O tamanho mínimo, precisão, filtros do par e conectividade devem ser verificados na corretora. Nenhuma URL de ordens reais foi implementada.
 
 ## Fiscal CPF — Brasil
