@@ -2,12 +2,24 @@
 import json
 import os
 from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
 from trader.execution import BinanceSpotTestnet, TESTNET
 
 
 def public_ping():
-    with urlopen(TESTNET + "ping", timeout=15) as response:
-        return json.load(response)
+    try:
+        with urlopen(TESTNET + "ping", timeout=15) as response:
+            return json.load(response)
+    except HTTPError as exc:
+        if exc.code == 451:
+            raise RuntimeError(
+                "BINANCE_TESTNET_REGION_RESTRICTED: endpoint publico devolveu HTTP 451 "
+                "ao runner GitHub; credenciais ainda nao foram verificadas. "
+                "Nao repetir ordens nem usar VPN/proxy para contornar a restricao."
+            ) from None
+        raise RuntimeError("BINANCE_TESTNET_PUBLIC_HTTP_%s" % exc.code) from None
+    except URLError:
+        raise RuntimeError("BINANCE_TESTNET_NETWORK_UNREACHABLE") from None
 
 
 def safe_account_summary(account):

@@ -36,6 +36,14 @@ class ConnectivityTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             api.request("api/v3/withdraw",signed=True)
 
+    def test_public_ping_region_restriction_is_actionable(self):
+        error=HTTPError("https://testnet.binance.vision/api/v3/ping",
+                        451,"Unavailable For Legal Reasons",{},BytesIO(b"PRIVATE_RESPONSE"))
+        with patch("testnet_connect.urlopen",side_effect=error):
+            with self.assertRaisesRegex(RuntimeError,"BINANCE_TESTNET_REGION_RESTRICTED") as captured:
+                testnet_connect.public_ping()
+        self.assertNotIn("PRIVATE_RESPONSE",str(captured.exception))
+
     def test_ping_uses_testnet_only(self):
         class FakeResponse:
             def __enter__(self): return self
