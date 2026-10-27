@@ -123,3 +123,46 @@ O bot envia ordens MARKET **so a Testnet**, com saldo ficticio. Nao existe ender
 **A cada ciclo:** o bot compara as posicoes locais com o saldo da Testnet. Se nao bater, ele para e avisa. Isso acontece, por exemplo, quando a Binance reinicia a Testnet, o que e periodico.
 
 Os sinais vem dos dados publicos do mercado real. Os precos da Testnet podem ser diferentes, e o livro de ofertas e fino, entao o resultado na Testnet nao representa o resultado com dinheiro real.
+
+## Colonia evolutiva de bots (somente simulacao)
+
+Bots que dao lucro se reproduzem e bots que dao prejuizo morrem. `colony.py` **nunca envia ordens**, nem para a Testnet.
+
+```powershell
+python colony.py --backtest --days 180   # pesquisa + colonia em dados que a pesquisa nunca viu
+python colony.py --live                  # colonia ao vivo em simulacao, a cada hora
+```
+
+**Nascimento**
+- A colonia so nasce de uma estrategia **aprovada** pela pesquisa: o vencedor mais 3 variacoes dele.
+- Os 4 primeiros bots recebem 60% do capital, 15 USDT cada. Os outros 40% ficam num caixa comum.
+
+**Reproducao**
+- Um bot so se reproduz depois de **pelo menos 10 operacoes completas** desde a ultima reproducao e com lucro de pelo menos **+5%** sobre a sua base.
+- O filho e uma copia levemente modificada do pai e opera a mesma moeda.
+- O filho recebe metade do lucro do pai. Se isso nao chegar a 10 USDT, o caixa comum completa. Se o caixa nao tiver o suficiente, o bot nao se reproduz.
+- Depois de se reproduzir, a base do pai passa a ser o saldo atual. Para se reproduzir de novo, ele precisa de mais 10 operacoes e mais 5% de lucro.
+
+**Morte**
+- O bot morre se perder **8%** em relacao a sua base, ou se ficar **14 dias** sem completar uma operacao.
+- A posicao aberta e fechada e o dinheiro que sobrar volta para o caixa comum.
+
+**Limites da colonia inteira**
+- No maximo 10 bots.
+- Cada compra usa no maximo 10% do patrimonio da colonia.
+- No maximo 50% do patrimonio fica investido ao mesmo tempo.
+- Se a colonia perder 3% no dia ou 8% no total, novas compras e nascimentos param. As saidas continuam liberadas.
+
+**No backtest**
+- Os primeiros 70% do historico vao para a pesquisa e os 30% finais para a colonia.
+- O relatorio mostra:
+  - cada bot com pai, geracao, resultado e motivo da morte;
+  - o patrimonio por dia;
+  - a comparacao com comprar e segurar.
+- `--ignore-approval` cria a colonia mesmo se a pesquisa reprovar a estrategia. Serve so para estudo.
+
+**Ao vivo**
+- O estado fica em `data/colony-state.json`.
+- Se todos os bots morrerem, a pesquisa roda de novo, no maximo uma vez por dia, e so cria bots novos se aprovar uma estrategia.
+
+Com 100 USDT cabem poucos bots, por causa do minimo de cerca de 5 USDT por ordem na Binance. Lucro de um bot em poucas operacoes e quase sempre sorte; por isso ha o minimo de 10 operacoes para se reproduzir.
