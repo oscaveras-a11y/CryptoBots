@@ -10,7 +10,7 @@ from pathlib import Path
 
 def report(path):
     state=json.loads(Path(path).read_text(encoding="utf-8"))
-    if state.get("schema")!=1 or state.get("mode")!="PAPER_ONLY":
+    if state.get("schema")!=1 or state.get("mode") not in ("PAPER_ONLY","TESTNET"):
         raise ValueError("Unsupported or unsafe portfolio state")
     cash=Decimal(state["cash"])
     if not cash.is_finite() or cash<0:
@@ -27,13 +27,14 @@ def report(path):
                 "entry_price":state.get("entries",{}).get(symbol)
             })
     trades=state.get("trades",[])
-    return {"mode":"PAPER_ONLY","cycle":state["cycle_number"],
+    return {"mode":state["mode"],"cycle":state["cycle_number"],
+            "pending_testnet_order":state.get("pending_order"),
             "free_quote_balance":str(cash),
             "open_positions":positions,
             "completed_trade_events":len(trades),
             "recent_trades":trades[-10:],
             "strategy_approved":state["approved"],
-            "warning":"Virtual balance only; no exchange connection or live PnL."}
+            "warning":"Virtual/testnet balance only; no real money and no live PnL."}
 
 
 def main():
