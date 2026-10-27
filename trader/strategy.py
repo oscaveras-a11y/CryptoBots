@@ -13,6 +13,10 @@ class Candle:
     high: float
     low: float
     volume: float
+    # Optional: opening price and Binance open time (ms, UTC). Older saved or
+    # synthetic data may lack them; fills then fall back to the prior close.
+    open: float = None
+    open_time: int = None
 
 
 def sma(values, period):
