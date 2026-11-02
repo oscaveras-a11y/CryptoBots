@@ -213,14 +213,20 @@ def bot(api, state_path=None, market=None):
 def forced_buy():
     return [patch("autonomous.evolve_indicators", return_value={"approved_for_paper": True,
                                                                 "winner": WINNER}),
-            patch("autonomous.trading_signal", return_value={"action": "BUY"}),
-            patch("autonomous.market_profile", return_value={"rsi": 50, "atr_percent": 1,
-                                                              "regime": "UPTREND"}),
+            patch("autonomous.wants_entry", return_value=True),
             patch("autonomous.entry_context", return_value={"allow_buy": True, "reasons": [],
                                                              "observation": {}})]
 
 
 class BotTestnetTests(unittest.TestCase):
+    def setUp(self):
+        # The bot only enters right after a candle closes: run "20 s after" the
+        # last FakeMarket candle (220 hourly candles from FakeMarket.start).
+        now = (FakeMarket().start + 220 * H) / 1000 + 20
+        clock = patch("time.time", return_value=now)
+        clock.start()
+        self.addCleanup(clock.stop)
+
     def run_cycle(self, b):
         patches = forced_buy()
         for p in patches:

@@ -110,5 +110,27 @@ class PaginationTests(unittest.TestCase):
         self.assertEqual([c.open_time for c in out["B"]], [2, 3, 4])
 
 
+class ResampleTests(unittest.TestCase):
+    def test_four_hour_candles_from_hourly(self):
+        from trader.market import resample
+        from trader.strategy import Candle
+        start = 1_700_000_000_000 // (4 * H) * (4 * H)
+        hourly = [Candle(10 + i, 20 + i, 5 + i, 1, open=9 + i, open_time=start + i * H)
+                  for i in range(10)]  # 2 full 4h buckets + 2 hours of a third
+        out = resample(hourly, 4)
+        self.assertEqual(len(out), 2)
+        first = out[0]
+        self.assertEqual((first.open, first.close, first.high, first.low, first.volume),
+                         (9, 13, 23, 5, 4))
+        self.assertEqual(out[1].open_time, start + 4 * H)
+
+    def test_bucket_with_missing_hour_is_dropped(self):
+        from trader.market import resample
+        from trader.strategy import Candle
+        start = 1_700_000_000_000 // (4 * H) * (4 * H)
+        hourly = [Candle(1, 2, 1, 1, open=1, open_time=start + i * H) for i in (0, 1, 3, 4, 5, 6, 7)]
+        self.assertEqual([c.open_time for c in resample(hourly, 4)], [start + 4 * H])
+
+
 if __name__ == "__main__":
     unittest.main()

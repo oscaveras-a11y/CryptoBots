@@ -20,9 +20,12 @@ from decimal import Decimal
 
 from trader.broker import PaperBroker, TestnetBroker, client_order_id
 from trader.execution import Limits, PaperPortfolio
-from trader.indicator_evolution import evolve_indicators, IndicatorGenome
-from trader.knowledge import market_profile
-from trader.strategy import trading_signal
+from trader.indicator_evolution import (STRATEGIES, IndicatorGenome, evolve_indicators,
+                                        research_plan, validate_genome)
+from trader.indicator_evolution import Features
+from trader.market import resample
+from trader.strategies import (Position, Snapshot, advance, exit_reason, open_position,
+                               wants_entry)
 from trader.decision_context import entry_context
 from trader.market_memory import MarketMemory
 from trader.paper_state import save as save_state, load as load_state
@@ -34,7 +37,7 @@ class AutonomousPaperBot:
     def __init__(self, market=None, symbols=None, capital="100",
                  bots=12, generations=5, seed=42, retrain_cycles=24,
                  state_path=None, memory_path=None, history_candles=2160,
-                 testnet_api=None):
+                 testnet_api=None, timeframe_hours=1, strategy="legacy"):
         if bots < 2 or generations < 1 or retrain_cycles < 1:
             raise ValueError("Invalid evolution configuration")
         self.market = market if market is not None else Market()
@@ -43,6 +46,10 @@ class AutonomousPaperBot:
         self.broker = (TestnetBroker(self.portfolio, testnet_api) if testnet_api is not None
                        else PaperBroker(self.portfolio))
         self.history_candles = history_candles
+        self.timeframe_hours = timeframe_hours
+        self.strategy = strategy
+        research_plan(strategy)  # validate the name early
+        self.position_meta = {}
         self.pending_order = None
         self.bots, self.generations, self.seed = bots, generations, seed
         self.retrain_cycles = retrain_cycles
@@ -126,13 +133,26 @@ class AutonomousPaperBot:
         self.pending_order=pending
         self.checkpoint()
 
-    def after_fill(self, side, symbol, reference_price):
+    def after_fill(self, side, symbol, reference_price, snapshot=None):
         if side=="BUY":
             self.entries[symbol]=self.stop_basis(reference_price)
             self.position_owners[symbol]="strategy:"+symbol
+            entry_atr=snapshot.atr() if snapshot is not None else 0.0
+            self.position_meta[symbol]={"entry":self.entries[symbol],
+                                        "highest":self.entries[symbol],
+                                        "entry_atr":entry_atr,"held":0}
         elif self.portfolio.holdings.get(symbol,0)<=0:
             self.entries.pop(symbol,None)
             self.position_owners.pop(symbol,None)
+            self.position_meta.pop(symbol,None)
+
+    def position_state(self, symbol, entry, snapshot):
+        """Open-position memory for trailing/time stops (rebuilt if missing)."""
+        meta=self.position_meta.get(symbol)
+        if meta is None:
+            meta={"entry":entry,"highest":entry,"entry_atr":snapshot.atr(),"held":0}
+        return Position(entry=float(meta["entry"]),highest=float(meta["highest"]),
+                        entry_atr=float(meta["entry_atr"]),held=int(meta["held"]))
 
     def settle_broker(self):
         """Resolve an order left uncertain by a crash/timeout, then reconcile."""
@@ -146,15 +166,34 @@ class AutonomousPaperBot:
             self.checkpoint()
         self.broker.reconcile()
 
+    FRESH_SECONDS = 3600
+
+    def signal_is_fresh(self, candles):
+        """Entries only within an hour of the candle's close (exits are never blocked)."""
+        last=candles[-1]
+        if last.open_time is None:
+            return True
+        closed_at=(last.open_time+self.timeframe_hours*3_600_000)/1000
+        return time.time()-closed_at <= self.FRESH_SECONDS
+
+    def research(self, data):
+        capital = float(self.portfolio.limits.capital)
+        fixed, plan = research_plan(self.strategy)
+        if fixed is not None:
+            return validate_genome(data, fixed, capital)
+        return evolve_indicators(data, capital=capital, bots=self.bots,
+                                 generations=self.generations,
+                                 seed=self.seed+self.cycle_number, **plan)
+
     def cycle(self):
         # Fetch all histories before mutating any portfolio state.
-        data = align_by_time({symbol:self.market.ohlcv(symbol,self.history_candles)
-                              for symbol in self.symbols})
+        hourly = align_by_time({symbol:self.market.ohlcv(symbol,self.history_candles)
+                                for symbol in self.symbols})
+        data = ({s:resample(c,self.timeframe_hours) for s,c in hourly.items()}
+                if self.timeframe_hours != 1 else hourly)
         self.settle_broker()
         if self.genome is None or self.cycle_number % self.retrain_cycles == 0:
-            report = evolve_indicators(data, capital=float(self.portfolio.limits.capital),
-                                       bots=self.bots, generations=self.generations,
-                                       seed=self.seed+self.cycle_number)
+            report = self.research(data)
             self.last_report = report
             self.approved = report["approved_for_paper"]
             # Keep an existing exit policy for open positions even if new
@@ -170,19 +209,19 @@ class AutonomousPaperBot:
         if self.genome is None and any(q > 0 for q in self.portfolio.holdings.values()):
             raise RuntimeError("Open paper positions lack an exit policy; manual review required")
         if not self.approved and self.genome is None:
-            self.remember_market(data)
+            self.remember_market(hourly)
             if self.memory is not None:
-                for symbol,candles in data.items():
+                for symbol,candles in hourly.items():
                     self.memory.decide(symbol,self.candle_key(candles),
                                        "WAIT","REJECTED_HOLDOUT",candles[-1].close)
             self.checkpoint()
             return {"status":"REJECTED_HOLDOUT","cycle":self.cycle_number,
                     "trades":[]}
-        self.remember_market(data)
-        prices = {symbol:self.current_price(symbol,candles) for symbol,candles in data.items()}
+        self.remember_market(hourly)
+        prices = {symbol:self.current_price(symbol,candles) for symbol,candles in hourly.items()}
         today = datetime.now(timezone.utc).date().isoformat()
         decisions=[]
-        btc_data = data.get("BTCUSDT")
+        btc_data = hourly.get("BTCUSDT")
         if btc_data is None and any(s != "BTCUSDT" for s in data):
             btc_data = self.market.ohlcv("BTCUSDT",60)
         btc_change = ((btc_data[-1].close / btc_data[-25].close - 1) * 100
@@ -196,20 +235,23 @@ class AutonomousPaperBot:
                 continue
             self.last_candle[symbol]=marker
             self.checkpoint()
-            profile=market_profile(candles)
-            signal=trading_signal(candles,fast=self.genome.fast,slow=self.genome.slow)
+            snapshot=Snapshot(Features(candles),len(candles))
             price=prices[symbol]
             position=self.portfolio.holdings.get(symbol,0)
             prior_count=len(decisions)
+            reason=None
             if position:
-                # Paper stop/take and sell signal; exits remain permitted if loss cap hit.
-                # Entry basis is recorded on each buy for stop/take.
+                # Same exit rules as the backtest; exits remain permitted if loss cap hit.
                 entry=self.entry_price(symbol)
-                if (entry is None or
-                    price<=entry*(1-self.genome.stop) or
-                    price>=entry*(1+self.genome.take) or
-                    signal["action"]=="SELL" or
-                    profile["rsi"]<self.genome.rsi_sell_min):
+                if entry is None:
+                    reason="MISSING_ENTRY_PRICE"
+                else:
+                    state=self.position_state(symbol,entry,snapshot)
+                    advance(state,snapshot)
+                    self.position_meta[symbol]={"entry":state.entry,"highest":state.highest,
+                                                "entry_atr":state.entry_atr,"held":state.held}
+                    reason=exit_reason(snapshot,self.genome,state,price)
+                if reason:
                     try:
                         self.broker.sell(symbol,price,prices,today,
                                          client_order_id("SELL",symbol,self.candle_id(candles)),
@@ -217,16 +259,18 @@ class AutonomousPaperBot:
                         self.after_fill("SELL",symbol,price)
                         self.checkpoint()
                         decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,"action":"SELL",
-                                          "reason":"EXIT" if entry is not None else "MISSING_ENTRY_PRICE"})
+                                          "reason":reason})
                     except (ValueError,RuntimeError) as exc:
                         self.checkpoint()
                         decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,
                                           "action":"WAIT","reason":"EXIT_FAILED: "+str(exc)})
-            elif (self.approved and signal["action"]=="BUY" and
-                  profile["rsi"]<=self.genome.rsi_buy_max and
-                  profile["atr_percent"]<=self.genome.max_atr_percent and
-                  profile["regime"]!="HIGH_VOLATILITY"):
-                context = entry_context(symbol,candles,btc_change)
+            elif self.approved and not self.signal_is_fresh(candles):
+                # Started (or restarted) long after this candle closed: the
+                # backtest would have bought at that candle's close, not now.
+                decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,
+                                  "action":"WAIT","reason":"STALE_CANDLE"})
+            elif self.approved and wants_entry(snapshot,self.genome):
+                context = entry_context(symbol,hourly[symbol],btc_change)
                 if not context["allow_buy"]:
                     decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,
                                       "action":"WAIT","reason":"MARKET_CONTEXT",
@@ -241,9 +285,10 @@ class AutonomousPaperBot:
                     self.broker.buy(symbol,price,prices,today,
                                     client_order_id("BUY",symbol,self.candle_id(candles)),
                                     self.set_pending)
-                    self.after_fill("BUY",symbol,price)
+                    self.after_fill("BUY",symbol,price,snapshot)
                     self.checkpoint()
-                    decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,"action":"BUY","reason":"CONFIRMED_SIGNAL"})
+                    decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,"action":"BUY",
+                                      "reason":"CONFIRMED_SIGNAL","strategy":self.genome.kind})
                 except (ValueError,RuntimeError) as exc:
                     self.checkpoint()
                     decisions.append({"symbol":symbol,"action":"WAIT","reason":str(exc)})
@@ -252,7 +297,8 @@ class AutonomousPaperBot:
                     "action":"WAIT","reason":"NO_ENTRY_OR_EXIT_SIGNAL"}
                 self.memory.decide(symbol,self.candle_key(candles),
                                    decision["action"],decision["reason"],price,
-                                   {"signal":signal,"profile":profile,
+                                   {"strategy":self.genome.kind,"timeframe_hours":self.timeframe_hours,
+                                    "profile":snapshot.profile(),
                                     "details":decision.get("details",[])})
             self.checkpoint()
         self.checkpoint()
@@ -293,8 +339,13 @@ def main():
     parser.add_argument("--interval",type=int,default=3600)
     parser.add_argument("--capital",default="100")
     parser.add_argument("--symbols",nargs="+",default=["BTCUSDT","ETHUSDT"])
-    parser.add_argument("--days",type=int,default=90,
-                        help="Dias de historico de 1h para treinar/validar (padrao 90)")
+    parser.add_argument("--days",type=int,default=180,
+                        help="Dias de historico para validar/treinar (padrao 180)")
+    parser.add_argument("--strategy",choices=STRATEGIES,default="preset",
+                        help="preset: tendencia robusta fixa (padrao); evolve: evolucao a partir "
+                             "dela; legacy: evolucao livre com aprovacao estrita")
+    parser.add_argument("--timeframe",type=int,default=6,choices=(1,2,4,6,12),
+                        help="Horas por candle usadas pela estrategia (padrao 6)")
     parser.add_argument("--mode",choices=("paper","testnet"),default="paper")
     parser.add_argument("--confirm-testnet",action="store_true",
                         help="Obrigatorio com --mode testnet: envia ordens FICTICIAS a Testnet")
@@ -316,7 +367,8 @@ def main():
                            state_path=args.state or "data/%s-state.json"%prefix,
                            memory_path=args.memory or ("data/market-memory.sqlite3" if prefix=="paper"
                                                        else "data/testnet-memory.sqlite3"),
-                           history_candles=args.days*24,testnet_api=api)
+                           history_candles=args.days*24,testnet_api=api,
+                           timeframe_hours=args.timeframe,strategy=args.strategy)
     bot.run(interval=args.interval,once=args.once)
 
 

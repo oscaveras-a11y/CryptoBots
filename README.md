@@ -166,3 +166,50 @@ python colony.py --live                  # colonia ao vivo em simulacao, a cada 
 - Se todos os bots morrerem, a pesquisa roda de novo, no maximo uma vez por dia, e so cria bots novos se aprovar uma estrategia.
 
 Com 100 USDT cabem poucos bots, por causa do minimo de cerca de 5 USDT por ordem na Binance. Lucro de um bot em poucas operacoes e quase sempre sorte; por isso ha o minimo de 10 operacoes para se reproduzir.
+
+## Estrategias e resultados com dados reais
+
+Os resultados abaixo vem de 2 anos de candles reais da Binance (8 pares, nov/2024 a nov/2026). Em cada rodada, a pesquisa treina em 6 meses e a estrategia opera os 2 meses seguintes, que ela nunca viu. O processo se repete 9 vezes, somando 18 meses operados (`evaluate.py`). Valores a partir de 100:
+
+| Estrategia | Resultado em 18 meses | Pior janela de 2 meses |
+|---|---|---|
+| **Tendencia fixa (`preset`), candles de 6h** | **118,6** | 97,2 |
+| Cruzamento de medias antigo, candles de 1h | 88,3 | - |
+| Evolucao livre, 4 tipos, candles de 6h | 92 a 94 | - |
+| Comprar e segurar as 8 moedas | 72,9 | 66,2 |
+
+**Quatro tipos de estrategia** (`trader/strategies.py`), usados com a mesma logica no backtest, no bot e na colonia:
+- `ma_cross`: o cruzamento de medias original;
+- `trend`: EMAs rapida e lenta, com stop inicial e stop movel em ATR;
+- `breakout`: rompimento da maxima dos ultimos N candles (canal de Donchian);
+- `mean_reversion`: banda de Bollinger mais RSI, com saida na media ou por tempo.
+
+**Padrao do bot: `--strategy preset --timeframe 6`.**
+- E uma estrategia de tendencia com EMAs de 30 e 80, filtro de tendencia de 100 candles, stop inicial de 3 ATR e stop movel de 2 ATR.
+- Foi escolhida pelo **pior caso** em 4h, 6h e 12h e em sub-periodos, e nao pelo maior lucro.
+- Com stop inicial de 2 a 4 ATR, o resultado quase nao muda. Parametros pouco sensiveis assim sao sinal de robustez.
+- Em 6h, 88% das 72 combinacoes de parametros de tendencia testadas deram lucro.
+
+**Outras opcoes de `--strategy`:**
+- `evolve`: evolucao de estrategias de tendencia e rompimento, partindo do preset;
+- `legacy`: o comportamento antigo, evolucao livre com aprovacao estrita.
+
+**Aprovacao (`sanity`).** E so uma checagem de que a estrategia nao esta quebrada: na media das moedas, os dados recentes que ela nao viu podem perder no maximo 3%, e nenhuma simulacao pode bater o limite de perda.
+- Nos testes, nenhuma regra de aprovacao mais exigente melhorou o resultado: todas cortavam justamente os meses de ganho grande.
+- A protecao de verdade vem dos stops e dos limites do bot: 10% por posicao, 3% de perda no dia e 8% de perda total.
+
+**O que esperar dela:**
+- **Perfil:** fica fora do mercado de 75% a 90% do tempo. Protege nas quedas e **fica para tras em altas fortes**. Nas janelas em que comprar e segurar deu +38% e +40%, ela fez +13% e +7%.
+- **Mercado de lado:** perde um pouco, de 2% a 3% por janela.
+- **Limitacao do teste:** o ganho veio de um periodo em que a maioria das altcoins caiu. Os dois anos testados sao um unico ciclo de mercado. Lucro passado nao garante resultado futuro.
+
+**Bot e backtest batem.** O bot foi rodado hora a hora sobre 4 meses de dados gravados e fez exatamente as mesmas operacoes que o backtest, nos mesmos horarios. Se o bot for ligado muito depois do fechamento de um candle, ele nao compra com esse sinal velho; vendas nunca sao bloqueadas.
+
+**Colonia com a estrategia de tendencia.** Ela opera cerca de uma vez por mes por moeda, entao os bots morrem pela regra de inatividade antes de chegar as 10 operacoes necessarias para se reproduzir. A colonia continua experimental. Os limites podem ser ajustados com `--idle-days` e `--reproduce-trades`.
+
+```bash
+python3 market_export.py --days 730 --output candles.csv.gz   # dados publicos, sem chave
+python3 evaluate.py candles.csv.gz --preset --summary          # avaliacao honesta
+python3 autonomous.py --once                                   # bot: preset, 6h, simulacao
+```
+

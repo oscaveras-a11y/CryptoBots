@@ -38,7 +38,7 @@ class AutonomousSafetyTests(unittest.TestCase):
 
     def test_missing_entry_exits_instead_of_disabling_stop(self):
         bot = bot_with_position()
-        with patch("autonomous.trading_signal", return_value={"action": "WAIT"}):
+        with patch("autonomous.exit_reason", return_value=None):
             result = bot.cycle()
         self.assertEqual(bot.portfolio.holdings["BTCUSDT"], 0)
         self.assertEqual(result["decisions"][0]["reason"], "MISSING_ENTRY_PRICE")
@@ -46,7 +46,7 @@ class AutonomousSafetyTests(unittest.TestCase):
     def test_known_entry_with_wide_stop_keeps_position(self):
         bot = bot_with_position()
         bot.entries["BTCUSDT"] = 110.0
-        with patch("autonomous.trading_signal", return_value={"action": "WAIT"}):
+        with patch("autonomous.exit_reason", return_value=None):
             bot.cycle()
         self.assertEqual(bot.portfolio.holdings["BTCUSDT"], Decimal("0.1"))
 

@@ -19,8 +19,26 @@ NO_COSTS = ColonyConfig(fee=0, slippage=0)
 SOLO = replace(NO_COSTS, initial_bots=1, max_position_fraction=1.0, max_total_exposure=1.0)
 
 
+class FakeSnapshot:
+    """Minimal snapshot for ma_cross genomes: forced signal and profile."""
+    def __init__(self, signal, profile, close):
+        self.signal, self._profile, self.close = signal, profile, close
+
+    def profile(self):
+        return self._profile
+
+    def ma_signal(self, fast, slow):
+        return self.signal
+
+    def last_close(self):
+        return self.close
+
+    def atr(self):
+        return 1.0
+
+
 def view(price, signal="WAIT", profile=CALM):
-    return View(profile, lambda fast, slow: signal, price)
+    return View(FakeSnapshot(signal, profile, price), price)
 
 
 def seeded(config=NO_COSTS, symbols=("AUSDT",), genome=GENOME):
