@@ -3,6 +3,7 @@ import time
 from urllib.request import Request, urlopen
 from urllib.parse import urlencode
 from urllib.error import HTTPError, URLError
+from http.client import HTTPException
 
 BASE = "https://api.binance.com/api/v3/"
 # Official public market-data mirror (no trading, no keys). Used when the
@@ -50,7 +51,7 @@ class Market:
                         self.sleep(min(wait, 60))
                         continue
                     raise RuntimeError("Binance dados de mercado HTTP %s em %s" % (exc.code, path)) from None
-                except (URLError, TimeoutError, ConnectionError):
+                except (URLError, OSError, HTTPException, ValueError):
                     last_error = "rede indisponivel"
                     if attempt + 1 < self.retries:
                         self.sleep(self.backoff * (2 ** attempt))
