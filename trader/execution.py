@@ -10,6 +10,7 @@ from decimal import Decimal
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
+from http.client import HTTPException
 
 TESTNET = 'https://testnet.binance.vision/api/v3/'
 CLIENT_ID = re.compile(r'[.A-Z:/a-z0-9_-]{1,36}')
@@ -199,8 +200,11 @@ class BinanceSpotTestnet:
         except HTTPError as exc:
             # Never include the request URL, signed query or key.
             raise self._error(exc) from None
-        except URLError:
-            raise RuntimeError('Binance Spot Testnet inacessivel (rede, DNS ou firewall)') from None
+        except (URLError, OSError, HTTPException, ValueError):
+            # Includes read timeouts (TimeoutError), dropped connections and
+            # truncated/invalid replies. The outcome of an order is then UNKNOWN.
+            raise RuntimeError('Binance Spot Testnet inacessivel ou lenta '
+                               '(rede, DNS, firewall ou tempo esgotado)') from None
 
     def sync_time(self):
         """Measure clock offset against the exchange; tolerant of bad replies."""
