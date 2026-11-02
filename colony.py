@@ -19,7 +19,8 @@ from pathlib import Path
 from trader.colony import (Colony, ColonyConfig, HOUR_MS, View, candle_day, run_backtest,
                            seed_genomes)
 from trader.indicator_evolution import Features, evolve_indicators
-from trader.market import Market, align_by_time
+from trader.market import Market, align_by_time, resample
+from trader.strategies import Snapshot
 
 LOG = logging.getLogger("cryptobots.colony")
 
@@ -43,7 +44,8 @@ class LiveColony:
     """Hourly paper colony on public Binance data, persisted after every step."""
 
     def __init__(self, market, symbols, config, state_path, history_candles=2160,
-                 bots=12, generations=5):
+                 bots=12, generations=5, timeframe_hours=1):
+        self.timeframe_hours = timeframe_hours
         self.market, self.symbols, self.state_path = market, sorted(symbols), state_path
         self.history_candles, self.bots, self.generations = history_candles, bots, generations
         self.last_research_t = None
@@ -54,6 +56,8 @@ class LiveColony:
                 state = json.load(stream)
             if state.get("symbols") != self.symbols:
                 raise ValueError("Estado da colonia usa outras moedas; use outro --state")
+            if state.get("timeframe_hours", 1) != timeframe_hours:
+                raise ValueError("Estado da colonia usa outro --timeframe; use outro --state")
             self.colony = Colony.from_dict(state["colony"])
             self.last_research_t = state.get("last_research_t")
         else:
@@ -61,6 +65,7 @@ class LiveColony:
 
     def save(self):
         atomic_write(self.state_path, {"symbols": self.symbols, "colony": self.colony.to_dict(),
+                                       "timeframe_hours": self.timeframe_hours,
                                        "last_research_t": self.last_research_t})
 
     def current_price(self, symbol, candles):
@@ -68,7 +73,8 @@ class LiveColony:
         return float(getter(symbol)) if callable(getter) else candles[-1].close
 
     def cycle(self):
-        data = align_by_time({s: self.market.ohlcv(s, self.history_candles) for s in self.symbols})
+        hourly = align_by_time({s: self.market.ohlcv(s, self.history_candles) for s in self.symbols})
+        data = {s: resample(c, self.timeframe_hours) for s, c in hourly.items()}
         first = data[self.symbols[0]]
         n = len(first)
         t = first[-1].open_time // HOUR_MS if first[-1].open_time is not None else n
@@ -85,9 +91,8 @@ class LiveColony:
                 self.colony.seed(seed_genomes(research["winner"], c.initial_bots, c.seed + t),
                                  self.symbols, t)
         features = {s: Features(candles) for s, candles in data.items()}
-        views = {s: View(features[s].profile(n),
-                         (lambda fast, slow, f=features[s]: f.signal(n, fast, slow)),
-                         self.current_price(s, data[s])) for s in self.symbols}
+        views = {s: View(Snapshot(features[s], n), self.current_price(s, hourly[s]))
+                 for s in self.symbols}
         events = self.colony.step(t, candle_day(first[-1], n), views)
         self.save()
         summary = self.colony.summary({s: v.price for s, v in views.items()})
@@ -120,6 +125,8 @@ def main():
     p.add_argument("--symbols", nargs="+", default=["BTCUSDT", "ETHUSDT"])
     p.add_argument("--days", type=int, default=None,
                    help="Historico de 1h (padrao: 180 no backtest, 90 ao vivo)")
+    p.add_argument("--timeframe", type=int, default=1, choices=(1, 2, 4, 6, 12),
+                   help="Horas por candle usadas pelas estrategias (padrao 1)")
     p.add_argument("--capital", type=float, default=100.0)
     p.add_argument("--max-bots", type=int, default=10)
     p.add_argument("--initial-bots", type=int, default=4)
@@ -136,10 +143,13 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     market = Market()
     if a.live:
-        LiveColony(market, a.symbols, config, a.state, history_candles=days * 24).run(once=a.once)
+        LiveColony(market, a.symbols, config, a.state, history_candles=days * 24,
+                   timeframe_hours=a.timeframe).run(once=a.once)
         return
-    data = align_by_time({s: market.ohlcv(s, days * 24) for s in a.symbols})
-    report = run_backtest(data, config, ignore_approval=a.ignore_approval)
+    hourly = align_by_time({s: market.ohlcv(s, days * 24) for s in a.symbols})
+    data = {s: resample(c, a.timeframe) for s, c in hourly.items()}
+    report = run_backtest(data, config, ignore_approval=a.ignore_approval,
+                          hours_per_candle=a.timeframe)
     print(json.dumps(report, indent=2, ensure_ascii=False))
 
 

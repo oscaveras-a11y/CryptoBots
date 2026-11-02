@@ -13,9 +13,14 @@ from dataclasses import asdict, dataclass
 from math import isfinite
 from statistics import mean
 
+from trader.strategies import (KINDS, Snapshot, advance, bollinger_at, exit_reason,
+                               open_position, required_history, wants_entry)
+
 
 @dataclass(frozen=True)
 class IndicatorGenome:
+    """Strategy DNA. The first seven genes are the original ma_cross ones; the
+    rest have defaults so older saved genomes still load as ma_cross."""
     fast: int
     slow: int
     rsi_buy_max: int
@@ -23,12 +28,22 @@ class IndicatorGenome:
     max_atr_percent: float
     stop: float
     take: float
+    kind: str = "ma_cross"
+    trend_len: int = 0          # 0 = no long-trend filter
+    channel: int = 20           # breakout lookback (candles)
+    exit_channel: int = 10      # breakout exit lookback
+    atr_stop: float = 2.0       # stop distance in ATRs below entry
+    trail: float = 0.0          # trailing stop in ATRs below the high; 0 = off
+    band_k: float = 2.0         # Bollinger width for mean reversion
+    oversold: float = 30.0      # RSI ceiling for mean-reversion entries
+    max_hold: int = 0           # time stop in candles; 0 = off
 
 
 # Approval policy (see evolve_indicators).
 MIN_HOLDOUT_ROUND_TRIPS = 3
 WALK_FORWARD_WINDOWS = 4
 MIN_GOOD_WINDOWS = 3
+MIN_TRAIN_ROUND_TRIPS = 3
 
 # trading_signal defaults, mirrored by Features.signal.
 _VOLUME_WINDOW = 20
@@ -36,7 +51,7 @@ _MAX_SIGNAL_VOLATILITY = 0.06
 _MIN_VOLUME_RATIO = 0.75
 
 
-def _random(rng):
+def _random_ma_cross(rng):
     fast = rng.randint(4, 18)
     return IndicatorGenome(fast, rng.randint(fast+5, 45),
                            rng.randint(55, 75), rng.randint(25, 45),
@@ -44,14 +59,61 @@ def _random(rng):
                            rng.uniform(.015, .08))
 
 
-def _mutate(g, rng):
-    fast = max(3, min(20, g.fast+rng.randint(-2, 2)))
-    return IndicatorGenome(fast, max(fast+4,min(50,g.slow+rng.randint(-4,4))),
-                           max(45,min(80,g.rsi_buy_max+rng.randint(-4,4))),
-                           max(20,min(55,g.rsi_sell_min+rng.randint(-4,4))),
-                           max(1,min(9,g.max_atr_percent*rng.uniform(.9,1.1))),
-                           max(.005,min(.06,g.stop*rng.uniform(.9,1.1))),
-                           max(.008,min(.12,g.take*rng.uniform(.9,1.1))))
+def _random(rng, kinds=KINDS):
+    kind = rng.choice(kinds)
+    if kind == "ma_cross":
+        return _random_ma_cross(rng)
+    fast = rng.randint(5, 30)
+    genes = dict(fast=fast, slow=rng.randint(fast+10, 120), rsi_buy_max=100, rsi_sell_min=0,
+                 max_atr_percent=rng.uniform(2, 12), stop=0.0, take=0.0, kind=kind,
+                 trend_len=rng.choice((0, rng.randint(50, 200))),
+                 atr_stop=rng.uniform(1.5, 4))
+    if kind == "trend":
+        genes["trail"] = rng.uniform(2, 5)
+    elif kind == "breakout":
+        channel = rng.randint(10, 80)
+        genes.update(channel=channel, exit_channel=rng.randint(5, max(6, channel//2)),
+                     trail=rng.choice((0.0, rng.uniform(2, 5))))
+    else:
+        genes.update(band_k=rng.uniform(1.5, 3), oversold=rng.uniform(20, 40),
+                     max_hold=rng.randint(5, 40))
+    return IndicatorGenome(**genes)
+
+
+def _jitter_int(rng, value, step, low, high):
+    return max(low, min(high, value + rng.randint(-step, step)))
+
+
+def _jitter(rng, value, low, high, spread=.1):
+    return max(low, min(high, value * rng.uniform(1-spread, 1+spread)))
+
+
+def _mutate(g, rng, kinds=KINDS):
+    if g.kind == "ma_cross":
+        fast = max(3, min(20, g.fast+rng.randint(-2, 2)))
+        return IndicatorGenome(fast, max(fast+4,min(50,g.slow+rng.randint(-4,4))),
+                               max(45,min(80,g.rsi_buy_max+rng.randint(-4,4))),
+                               max(20,min(55,g.rsi_sell_min+rng.randint(-4,4))),
+                               max(1,min(9,g.max_atr_percent*rng.uniform(.9,1.1))),
+                               max(.005,min(.06,g.stop*rng.uniform(.9,1.1))),
+                               max(.008,min(.12,g.take*rng.uniform(.9,1.1))))
+    fast = _jitter_int(rng, g.fast, 3, 3, 40)
+    genes = asdict(g)
+    genes.update(fast=fast, slow=_jitter_int(rng, g.slow, 8, fast+5, 160),
+                 max_atr_percent=_jitter(rng, g.max_atr_percent, 1, 15),
+                 atr_stop=_jitter(rng, g.atr_stop, 1, 6))
+    if g.trend_len:
+        genes["trend_len"] = _jitter_int(rng, g.trend_len, 15, 30, 250)
+    if g.trail:
+        genes["trail"] = _jitter(rng, g.trail, 1, 8)
+    if g.kind == "breakout":
+        channel = _jitter_int(rng, g.channel, 5, 5, 120)
+        genes.update(channel=channel,
+                     exit_channel=_jitter_int(rng, g.exit_channel, 3, 3, max(4, channel)))
+    if g.kind == "mean_reversion":
+        genes.update(band_k=_jitter(rng, g.band_k, 1, 4), oversold=_jitter(rng, g.oversold, 10, 50),
+                     max_hold=_jitter_int(rng, g.max_hold, 4, 2, 80))
+    return IndicatorGenome(**genes)
 
 
 class Features:
@@ -78,6 +140,11 @@ class Features:
         self.exec_price = [None] + [candles[i].open if candles[i].open is not None
                                     else closes[i-1] for i in range(1, n)]
         self._sma = {}
+        self._ema = {}
+        self._donchian = {}
+        self._bollinger = None
+        self.highs = [c.high for c in candles]
+        self.lows = [c.low for c in candles]
         self._profiles = self._profile_series(candles)
         self._signal_base = self._signal_series(candles)
 
@@ -132,6 +199,7 @@ class Features:
         profiles = [None]*(self.n+1)
         e12, e26, e50 = (self._ema_series(p) for p in (12, 26, 50))
         rsi, atr = self._rsi_series(), self._atr_series(candles)
+        self.rsi_values, self.atr_values = rsi, atr
         for k in range(51, self.n+1):
             volatility = atr[k]/self.closes[k-1]
             avg_volume = mean(self.volumes[k-21:k-1])
@@ -177,6 +245,42 @@ class Features:
             self._sma[period] = series
         return series
 
+    # --- extra series for the other strategy families ---------------------
+    def ema(self, period):
+        series = self._ema.get(period)
+        if series is None:
+            series = self._ema[period] = self._ema_series(period)
+        return series
+
+    def donchian_high(self, n):
+        """out[k] = highest high of the n candles before the last closed one."""
+        key = ("high", n)
+        if key not in self._donchian:
+            out = [None]*(self.n+1)
+            highs = self.highs
+            for k in range(n+1, self.n+1):
+                out[k] = max(highs[k-1-n:k-1])
+            self._donchian[key] = out
+        return self._donchian[key]
+
+    def donchian_low(self, n):
+        key = ("low", n)
+        if key not in self._donchian:
+            out = [None]*(self.n+1)
+            lows = self.lows
+            for k in range(n+1, self.n+1):
+                out[k] = min(lows[k-1-n:k-1])
+            self._donchian[key] = out
+        return self._donchian[key]
+
+    def bollinger(self):
+        if self._bollinger is None:
+            out = [None]*(self.n+1)
+            for k in range(20, self.n+1):
+                out[k] = bollinger_at(self.closes, k)
+            self._bollinger = out
+        return self._bollinger
+
     def signal(self, k, fast, slow):
         if not 2 <= fast < slow:
             raise ValueError("Invalid lookback windows")
@@ -195,11 +299,14 @@ class Features:
 
 
 def _replay(features, genome, capital, start, end, fee, slippage, max_loss):
-    start = max(51, genome.slow+2) if start is None else max(start, 51, genome.slow+2)
+    need = required_history(genome)
+    start = need if start is None else max(start, need)
     end = features.n if end is None else end
-    cash, units, entry, trades, round_trips, wins = float(capital), 0.0, 0.0, 0, 0, 0
+    cash, units, trades, round_trips, wins = float(capital), 0.0, 0, 0, 0
     peak, drawdown, stopped = float(capital), 0.0, False
     cost_basis = 0.0
+    position = None
+    exposure_steps = 0
     for i in range(start, end):
         price = features.exec_price[i]
         equity = cash+units*price*(1-fee-slippage)
@@ -213,24 +320,22 @@ def _replay(features, genome, capital, start, end, fee, slippage, max_loss):
                 trades += 1
                 round_trips += 1
             break
-        profile = features.profile(i)
-        signal = features.signal(i, genome.fast, genome.slow)
-        if units and (price <= entry*(1-genome.stop) or
-                      price >= entry*(1+genome.take) or
-                      signal == "SELL" or
-                      profile["rsi"] < genome.rsi_sell_min):
-            cash = units*price*(1-fee-slippage)
-            units = 0
-            trades += 1
-            round_trips += 1
-            wins += int(cash > cost_basis)
-        elif (not units and signal == "BUY"
-              and profile["rsi"] <= genome.rsi_buy_max
-              and profile["atr_percent"] <= genome.max_atr_percent
-              and profile["regime"] != "HIGH_VOLATILITY"):
+        snapshot = Snapshot(features, i)
+        if units:
+            exposure_steps += 1
+            advance(position, snapshot)
+            if exit_reason(snapshot, genome, position, price):
+                cash = units*price*(1-fee-slippage)
+                units = 0
+                position = None
+                trades += 1
+                round_trips += 1
+                wins += int(cash > cost_basis)
+        elif wants_entry(snapshot, genome):
             cost_basis = cash
-            entry = price*(1+slippage)
-            units = cash*(1-fee)/entry
+            fill = price*(1+slippage)
+            position = open_position(snapshot, genome, fill)
+            units = cash*(1-fee)/fill
             cash = 0.0
             trades += 1
     last_close = features.closes[end-1]
@@ -240,7 +345,8 @@ def _replay(features, genome, capital, start, end, fee, slippage, max_loss):
     buy_hold = capital*(1-fee)/(first*(1+slippage))*last_close*(1-fee-slippage)
     return {"equity":round(final, 4), "trades":trades, "round_trips":round_trips,
             "winning_round_trips":wins, "drawdown":round(drawdown, 5),
-            "dead":stopped, "buy_hold_equity":round(buy_hold, 4)}
+            "dead":stopped, "buy_hold_equity":round(buy_hold, 4),
+            "time_in_market":round(exposure_steps/max(1, end-start), 4)}
 
 
 def replay(candles, genome, capital=100.0, start=None,
@@ -253,8 +359,16 @@ def replay(candles, genome, capital=100.0, start=None,
     return _replay(features, genome, capital, start, end, fee, slippage, max_loss)
 
 
+def train_score(results, capital):
+    """Training fitness: average of equity minus drawdown and risk-stop penalties,
+    minus a penalty for trading too little to tell skill from luck."""
+    return sum(r["equity"]-capital*r["drawdown"]-capital*.1*int(r["dead"])
+               - capital*.02*int(r["round_trips"] < MIN_TRAIN_ROUND_TRIPS)
+               for r in results)/len(results)
+
+
 def evolve_indicators(data, capital=100.0, bots=20, generations=8, seed=42,
-                      min_round_trips=MIN_HOLDOUT_ROUND_TRIPS):
+                      min_round_trips=MIN_HOLDOUT_ROUND_TRIPS, kinds=KINDS):
     if not data or bots < 2 or generations < 1:
         raise ValueError("Invalid research configuration")
     for candles in data.values():
@@ -263,7 +377,10 @@ def evolve_indicators(data, capital=100.0, bots=20, generations=8, seed=42,
     rng = random.Random(seed)
     splits = {s:int(len(c)*.7) for s, c in data.items()}
     features = {s:Features(c) for s, c in data.items()}
-    population = [_random(rng) for _ in range(bots)]
+    kinds = tuple(kinds)
+    if not kinds or any(k not in KINDS for k in kinds):
+        raise ValueError("Unknown strategy kinds")
+    population = [_random(rng, kinds) for _ in range(bots)]
     history = []
     best_seen = None
     cache = {}
@@ -272,8 +389,7 @@ def evolve_indicators(data, capital=100.0, bots=20, generations=8, seed=42,
         if g not in cache:
             results = [replay(c, g, capital, features=features[s], end=splits[s])
                        for s, c in data.items()]
-            cache[g] = sum(r["equity"]-capital*r["drawdown"]
-                           - capital*.1*int(r["dead"]) for r in results)/len(results)
+            cache[g] = train_score(results, capital)
         return cache[g]
 
     for generation in range(generations):
@@ -284,7 +400,9 @@ def evolve_indicators(data, capital=100.0, bots=20, generations=8, seed=42,
         history.append({"generation":generation+1,
                         "best_train_score":round(ranked[0][0], 4)})
         champions = [g for _, g in ranked[:max(1, bots//4)]]
-        population = champions+[_mutate(rng.choice(champions), rng)
+        # Mostly mutate champions; a few fresh random genomes keep diversity.
+        population = champions+[(_random(rng, kinds) if rng.random() < .15 else
+                                 _mutate(rng.choice(champions), rng))
                                 for _ in range(bots-len(champions))]
     # The final mutated population is not itself evaluated by the loop.
     # Compare it against the best evaluated genome to avoid losing the elite.
@@ -308,7 +426,7 @@ def evolve_indicators(data, capital=100.0, bots=20, generations=8, seed=42,
             windows.append({"start_index":start, "end_index_exclusive":end, **result})
         walk_forward[symbol] = windows
     approved = all(r["round_trips"] >= min_round_trips and not r["dead"] and
-                   r["equity"] >= capital for r in validation.values()) and all(
+                   r["equity"] > capital for r in validation.values()) and all(
                    sum(w["round_trips"] > 0 for w in windows) >= MIN_GOOD_WINDOWS and
                    all(not w["dead"] for w in windows) and
                    sum(w["equity"] >= capital for w in windows) >= MIN_GOOD_WINDOWS
@@ -318,7 +436,7 @@ def evolve_indicators(data, capital=100.0, bots=20, generations=8, seed=42,
             "walk_forward":walk_forward,
             "approved_for_paper":approved,
             "approval_rule":("Holdout por moeda: >= %d operacoes completas, sem stop de "
-                             "risco, sem prejuizo. Walk-forward: %d janelas, >= %d com "
+                             "risco, com lucro (melhor que ficar em caixa). Walk-forward: %d janelas, >= %d com "
                              "operacao e >= %d sem prejuizo, nenhuma com stop de risco. "
                              "buy_hold_equity e so comparacao.")
                             % (min_round_trips, WALK_FORWARD_WINDOWS,

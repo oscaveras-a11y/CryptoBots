@@ -213,9 +213,7 @@ def bot(api, state_path=None, market=None):
 def forced_buy():
     return [patch("autonomous.evolve_indicators", return_value={"approved_for_paper": True,
                                                                 "winner": WINNER}),
-            patch("autonomous.trading_signal", return_value={"action": "BUY"}),
-            patch("autonomous.market_profile", return_value={"rsi": 50, "atr_percent": 1,
-                                                              "regime": "UPTREND"}),
+            patch("autonomous.wants_entry", return_value=True),
             patch("autonomous.entry_context", return_value={"allow_buy": True, "reasons": [],
                                                              "observation": {}})]
 

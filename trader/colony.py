@@ -23,6 +23,7 @@ from dataclasses import asdict, dataclass, fields
 from datetime import datetime, timezone
 
 from trader.indicator_evolution import Features, IndicatorGenome, _mutate, evolve_indicators
+from trader.strategies import Position, Snapshot, advance, exit_reason, open_position, wants_entry
 
 MIN_ORDER_QUOTE = 5.0  # Binance spot minimum notional for common USDT pairs
 HOUR_MS = 3_600_000
@@ -86,6 +87,13 @@ class Agent:
     death_reason: str = None
     died_at: int = None
     birth_capital: float = 0.0
+    highest: float = None      # highest closed price since entry (trailing stop)
+    entry_atr: float = 0.0
+    held: int = 0              # candles held in the current position
+
+    def position(self):
+        return Position(entry=self.entry, highest=self.highest if self.highest is not None
+                        else self.entry, entry_atr=self.entry_atr, held=self.held)
 
     def equity(self, price, fee, slippage):
         return self.cash + self.units * price * (1 - fee - slippage)
@@ -93,9 +101,8 @@ class Agent:
 
 @dataclass
 class View:
-    """What a bot may see at one step: indicators of CLOSED candles and the fill price."""
-    profile: dict
-    signal: object  # callable(fast, slow) -> "BUY" | "SELL" | "WAIT"
+    """What a bot may see at one step: a snapshot of CLOSED candles and the fill price."""
+    snapshot: object  # trader.strategies.Snapshot (or a compatible test double)
     price: float
 
 
@@ -174,9 +181,11 @@ class Colony:
                       parent=None)
         return created
 
-    def _buy(self, agent, amount, price, t):
+    def _buy(self, agent, amount, price, t, snapshot):
         c = self.config
-        agent.entry = price * (1 + c.slippage)
+        position = open_position(snapshot, None, price * (1 + c.slippage))
+        agent.entry, agent.highest = position.entry, position.highest
+        agent.entry_atr, agent.held = position.entry_atr, 0
         agent.units = amount * (1 - c.fee) / agent.entry
         agent.cost_basis = amount
         agent.cash -= amount
@@ -188,7 +197,8 @@ class Colony:
         proceeds = agent.units * price * (1 - c.fee - c.slippage)
         agent.cash += proceeds
         agent.units = 0.0
-        agent.entry = None
+        agent.entry = agent.highest = None
+        agent.entry_atr, agent.held = 0.0, 0
         agent.round_trips += 1
         agent.trips_since_reproduction += 1
         won = proceeds > agent.cost_basis
@@ -273,16 +283,16 @@ class Colony:
                 self._kill(agent, "IDLE", price, t)
                 continue
             g = IndicatorGenome(**agent.genome)
-            profile = view.profile
-            signal = view.signal(g.fast, g.slow)
+            snapshot = view.snapshot
             if agent.units:
-                if (price <= agent.entry * (1 - g.stop) or price >= agent.entry * (1 + g.take)
-                        or signal == "SELL" or profile["rsi"] < g.rsi_sell_min):
+                position = agent.position()
+                advance(position, snapshot)
+                agent.highest, agent.held = position.highest, position.held
+                reason = exit_reason(snapshot, g, position, price)
+                if reason:
                     exposure -= agent.units * price * (1 - c.fee - c.slippage)
-                    self._sell(agent, price, t, "EXIT")
-            elif (signal == "BUY" and profile["rsi"] <= g.rsi_buy_max
-                  and profile["atr_percent"] <= g.max_atr_percent
-                  and profile["regime"] != "HIGH_VOLATILITY"):
+                    self._sell(agent, price, t, reason)
+            elif wants_entry(snapshot, g):
                 amount = min(agent.cash, equity * c.max_position_fraction)
                 if self.halted:
                     self._log(t, "SKIP", agent, reason=self.halted)
@@ -291,7 +301,7 @@ class Colony:
                 elif exposure + amount > equity * c.max_total_exposure:
                     self._log(t, "SKIP", agent, reason="COLONY_EXPOSURE_LIMIT")
                 else:
-                    self._buy(agent, amount, price, t)
+                    self._buy(agent, amount, price, t, snapshot)
                     exposure += amount * (1 - c.fee)
             if agent.alive and not agent.units:
                 self._maybe_reproduce(agent, t, births)
@@ -352,12 +362,11 @@ def candle_day(candle, index):
 
 def views_at(features, i):
     """Market views for step i: indicators of candles[:i], fill at candles[i] open."""
-    return {s: View(f.profile(i), (lambda fast, slow, f=f: f.signal(i, fast, slow)),
-                    f.exec_price[i]) for s, f in features.items()}
+    return {s: View(Snapshot(f, i), f.exec_price[i]) for s, f in features.items()}
 
 
 def run_backtest(data, config=ColonyConfig(), research_fraction=0.7, bots=12,
-                 generations=5, ignore_approval=False):
+                 generations=5, ignore_approval=False, hours_per_candle=1):
     """Research on the first part of the history, then run the colony on the rest.
 
     The colony period is never seen by the research. `ignore_approval` seeds
@@ -376,7 +385,7 @@ def run_backtest(data, config=ColonyConfig(), research_fraction=0.7, bots=12,
                                  bots=bots, generations=generations, seed=config.seed)
     report = {"mode": "PAPER_COLONY_BACKTEST", "research_candles": cut,
               "colony_candles": n - cut, "research_approved": research["approved_for_paper"],
-              "winner": research["winner"]}
+              "winner": research["winner"], "hours_per_candle": hours_per_candle}
     if not research["approved_for_paper"] and not ignore_approval:
         report["status"] = "REJECTED_RESEARCH"
         report["note"] = "Pesquisa nao aprovou estrategia; colonia nao foi criada."
@@ -384,10 +393,13 @@ def run_backtest(data, config=ColonyConfig(), research_fraction=0.7, bots=12,
     symbols = sorted(data)
     features = {s: Features(c) for s, c in data.items()}
     colony = Colony(config)
-    colony.seed(seed_genomes(research["winner"], config.initial_bots, config.seed), symbols, cut)
+    colony.seed(seed_genomes(research["winner"], config.initial_bots, config.seed), symbols,
+                cut * hours_per_candle)
     first = next(iter(data.values()))
     for i in range(cut, n):
-        colony.step(i, candle_day(first[i], i), views_at(features, i))
+        # The colony clock is in hours, so idle limits mean the same on any timeframe.
+        colony.step(i * hours_per_candle, candle_day(first[i], i * hours_per_candle),
+                    views_at(features, i))
     last = {s: c[-1].close for s, c in data.items()}
     start_prices = {s: features[s].exec_price[cut] for s in symbols}
     share = config.capital / len(symbols)

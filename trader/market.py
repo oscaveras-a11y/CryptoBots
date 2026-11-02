@@ -145,3 +145,30 @@ def align_by_time(data):
     common = set.intersection(*({c.open_time for c in candles} for candles in data.values()))
     return {symbol:[c for c in candles if c.open_time in common]
             for symbol,candles in data.items()}
+
+
+def resample(candles, hours):
+    """Combine hourly candles into `hours`-hour candles aligned to UTC.
+
+    Only complete buckets (every hour present) are kept, so the last bucket is
+    used only after its final hour has closed. hours=1 returns the input.
+    """
+    from trader.strategy import Candle
+    if hours == 1:
+        return list(candles)
+    if hours < 1 or 24 % hours:
+        raise ValueError("hours must divide 24")
+    if any(c.open_time is None for c in candles):
+        raise ValueError("Resampling needs candle open times")
+    span = hours * HOUR_MS
+    buckets = {}
+    for c in candles:
+        buckets.setdefault(c.open_time // span * span, []).append(c)
+    out = []
+    for start in sorted(buckets):
+        group = buckets[start]
+        if len(group) != hours or [c.open_time for c in group] != [start + i*HOUR_MS for i in range(hours)]:
+            continue
+        out.append(Candle(group[-1].close, max(c.high for c in group), min(c.low for c in group),
+                          sum(c.volume for c in group), open=group[0].open, open_time=start))
+    return out
