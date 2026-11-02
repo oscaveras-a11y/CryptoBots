@@ -144,6 +144,11 @@ class GenomeTests(unittest.TestCase):
 
 
 class BotIntegrationTests(unittest.TestCase):
+    def setUp(self):
+        clock = patch("time.time", return_value=800 * 3600 + 20)  # just after the last close
+        clock.start()
+        self.addCleanup(clock.stop)
+
     def make_bot(self, timeframe, path=None):
         from autonomous import AutonomousPaperBot
 
@@ -189,6 +194,78 @@ class ColonyIntegrationTests(unittest.TestCase):
         report = run_backtest(data, ColonyConfig(), ignore_approval=True, hours_per_candle=4)
         self.assertEqual(report["status"], "SIMULATED")
         self.assertEqual(report["hours_per_candle"], 4)
+
+
+class FreshnessTests(unittest.TestCase):
+    def test_bot_does_not_enter_on_a_candle_that_closed_hours_ago(self):
+        from autonomous import AutonomousPaperBot
+
+        class Market:
+            def ohlcv(self, symbol, limit):
+                return random_candles(800, seed=21)  # open_time = i hours from 0
+
+        g = genome("trend", trail=3.0, atr_stop=10)
+        approved = {"approved_for_paper": True, "winner": vars(g)}
+        last_close_s = (800 // 6 * 6) * 3600  # end of the last complete 6h candle
+        for delay, expected in ((20, "BUY"), (3 * 3600, "WAIT")):
+            bot = AutonomousPaperBot(market=Market(), symbols=["BTCUSDT"], bots=2, generations=1,
+                                     timeframe_hours=6)
+            with patch("autonomous.evolve_indicators", return_value=approved), \
+                 patch("autonomous.wants_entry", return_value=True), \
+                 patch("autonomous.entry_context", return_value={"allow_buy": True,
+                                                                 "reasons": [], "observation": {}}), \
+                 patch("time.time", return_value=last_close_s + delay):
+                result = bot.cycle()
+            self.assertEqual(result["decisions"][0]["action"], expected, delay)
+
+    def test_stale_candle_never_blocks_an_exit(self):
+        from decimal import Decimal
+        from autonomous import AutonomousPaperBot
+
+        class Market:
+            def ohlcv(self, symbol, limit):
+                return random_candles(800, seed=21)
+
+        g = genome("trend", trail=3.0, atr_stop=10)
+        bot = AutonomousPaperBot(market=Market(), symbols=["BTCUSDT"], bots=2, generations=1,
+                                 timeframe_hours=6)
+        bot.genome, bot.approved, bot.cycle_number = g, True, 1
+        bot.portfolio.holdings["BTCUSDT"] = Decimal("0.1")
+        bot.portfolio.cash = Decimal("90")
+        bot.entries["BTCUSDT"] = 100.0
+        with patch("autonomous.exit_reason", return_value="TRAILING_STOP"), \
+             patch("time.time", return_value=10 ** 10):
+            result = bot.cycle()
+        self.assertEqual(result["decisions"][0]["action"], "SELL")
+
+
+class DefaultsTests(unittest.TestCase):
+    def test_cli_defaults_are_robust_trend_on_six_hours(self):
+        import argparse
+        import autonomous
+        captured = {}
+
+        class Stop(Exception):
+            pass
+
+        def fake_bot(**kw):
+            captured.update(kw)
+            raise Stop()
+
+        with patch.object(sys, "argv", ["autonomous.py", "--once"]), \
+             patch.object(autonomous, "AutonomousPaperBot", side_effect=fake_bot):
+            with self.assertRaises(Stop):
+                autonomous.main()
+        self.assertEqual((captured["strategy"], captured["timeframe_hours"],
+                          captured["history_candles"]), ("preset", 6, 180 * 24))
+
+    def test_robust_trend_preset_is_valid(self):
+        from trader.indicator_evolution import ROBUST_TREND, validate_genome
+        data = {"AUSDT": random_candles(800, seed=3), "BUSDT": random_candles(800, seed=4)}
+        report = validate_genome(data, ROBUST_TREND)
+        self.assertEqual(report["winner"]["kind"], "trend")
+        self.assertEqual(report["approval"], "sanity")
+        self.assertIn("approved_for_paper", report)
 
 
 if __name__ == "__main__":

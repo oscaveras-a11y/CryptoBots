@@ -219,6 +219,14 @@ def forced_buy():
 
 
 class BotTestnetTests(unittest.TestCase):
+    def setUp(self):
+        # The bot only enters right after a candle closes: run "20 s after" the
+        # last FakeMarket candle (220 hourly candles from FakeMarket.start).
+        now = (FakeMarket().start + 220 * H) / 1000 + 20
+        clock = patch("time.time", return_value=now)
+        clock.start()
+        self.addCleanup(clock.stop)
+
     def run_cycle(self, b):
         patches = forced_buy()
         for p in patches:

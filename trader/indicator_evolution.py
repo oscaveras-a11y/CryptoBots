@@ -44,6 +44,11 @@ MIN_HOLDOUT_ROUND_TRIPS = 3
 WALK_FORWARD_WINDOWS = 4
 MIN_GOOD_WINDOWS = 3
 MIN_TRAIN_ROUND_TRIPS = 3
+# Research replays put the whole simulated balance in one coin. The live bot
+# risks at most 10% of its capital per position, so a 25% loss on that sleeve
+# is ~2.5% of the bot; the bot's own 3%/day and 8%/total limits still apply.
+RESEARCH_MAX_LOSS = 0.25
+SANITY_MIN_EQUITY = 0.97
 
 # trading_signal defaults, mirrored by Features.signal.
 _VOLUME_WINDOW = 20
@@ -368,7 +373,8 @@ def train_score(results, capital):
 
 
 def evolve_indicators(data, capital=100.0, bots=20, generations=8, seed=42,
-                      min_round_trips=MIN_HOLDOUT_ROUND_TRIPS, kinds=KINDS):
+                      min_round_trips=MIN_HOLDOUT_ROUND_TRIPS, kinds=KINDS,
+                      initial=(), max_loss=RESEARCH_MAX_LOSS, approval="strict"):
     if not data or bots < 2 or generations < 1:
         raise ValueError("Invalid research configuration")
     for candles in data.values():
@@ -380,15 +386,16 @@ def evolve_indicators(data, capital=100.0, bots=20, generations=8, seed=42,
     kinds = tuple(kinds)
     if not kinds or any(k not in KINDS for k in kinds):
         raise ValueError("Unknown strategy kinds")
-    population = [_random(rng, kinds) for _ in range(bots)]
+    population = [g for g in initial if g.kind in kinds][:bots]
+    population += [_random(rng, kinds) for _ in range(bots - len(population))]
     history = []
     best_seen = None
     cache = {}
 
     def score(g):
         if g not in cache:
-            results = [replay(c, g, capital, features=features[s], end=splits[s])
-                       for s, c in data.items()]
+            results = [replay(c, g, capital, features=features[s], end=splits[s],
+                              max_loss=max_loss) for s, c in data.items()]
             cache[g] = train_score(results, capital)
         return cache[g]
 
@@ -408,8 +415,16 @@ def evolve_indicators(data, capital=100.0, bots=20, generations=8, seed=42,
     # Compare it against the best evaluated genome to avoid losing the elite.
     final_best = max(((score(g), g) for g in population), key=lambda item:item[0])
     winner = max((best_seen, final_best), key=lambda item:item[0])[1]
-    validation = {s:replay(c, winner, capital, start=splits[s], features=features[s])
-                  for s, c in data.items()}
+    report = _validate(data, features, splits, winner, capital, max_loss,
+                       min_round_trips, approval)
+    report["generations"] = history
+    return report
+
+
+def _validate(data, features, splits, winner, capital, max_loss, min_round_trips, approval):
+    """Evaluate a frozen genome on the unseen last 30% (+ walk-forward windows)."""
+    validation = {s:replay(c, winner, capital, start=splits[s], features=features[s],
+                         max_loss=max_loss) for s, c in data.items()}
     # Frozen-genome walk-forward on consecutive slices of the unseen data;
     # each window has its own simulated starting capital.
     walk_forward = {}
@@ -422,24 +437,76 @@ def evolve_indicators(data, capital=100.0, bots=20, generations=8, seed=42,
         for i in range(WALK_FORWARD_WINDOWS):
             start, end = boundaries[i], boundaries[i+1]
             result = replay(candles, winner, capital, start=start,
-                            features=features[symbol], end=end)
+                            features=features[symbol], end=end, max_loss=max_loss)
             windows.append({"start_index":start, "end_index_exclusive":end, **result})
         walk_forward[symbol] = windows
-    approved = all(r["round_trips"] >= min_round_trips and not r["dead"] and
-                   r["equity"] > capital for r in validation.values()) and all(
-                   sum(w["round_trips"] > 0 for w in windows) >= MIN_GOOD_WINDOWS and
-                   all(not w["dead"] for w in windows) and
-                   sum(w["equity"] >= capital for w in windows) >= MIN_GOOD_WINDOWS
-                   for windows in walk_forward.values())
+    if approval == "strict":
+        approved = all(r["round_trips"] >= min_round_trips and not r["dead"] and
+                       r["equity"] > capital for r in validation.values()) and all(
+                       sum(w["round_trips"] > 0 for w in windows) >= MIN_GOOD_WINDOWS and
+                       all(not w["dead"] for w in windows) and
+                       sum(w["equity"] >= capital for w in windows) >= MIN_GOOD_WINDOWS
+                       for windows in walk_forward.values())
+        rule = ("Estrita. Holdout por moeda: >= %d operacoes completas, sem stop de risco, com "
+                "lucro. Walk-forward: %d janelas, >= %d com operacao e >= %d sem prejuizo, "
+                "nenhuma com stop de risco.") % (min_round_trips, WALK_FORWARD_WINDOWS,
+                                                 MIN_GOOD_WINDOWS, MIN_GOOD_WINDOWS)
+    elif approval == "sanity":
+        holdout = list(validation.values())
+        mean_equity = sum(r["equity"] for r in holdout) / len(holdout)
+        # No minimum trade count here: a slow trend strategy may simply not
+        # trade for weeks, which is not evidence that it is broken.
+        approved = (mean_equity >= capital * SANITY_MIN_EQUITY
+                    and not any(r["dead"] for r in holdout)
+                    and not any(w["dead"] for ws in walk_forward.values() for w in ws))
+        rule = ("Checagem de sanidade (carteira). Na media das moedas, os dados recentes nao "
+                "vistos perdem no maximo %.0f%%; nenhuma simulacao bate o limite de perda de "
+                "%.0f%%. Nao e promessa de "
+                "lucro: a protecao vem dos stops e dos limites de risco do bot.") % (
+                    (1-SANITY_MIN_EQUITY)*100, max_loss*100)
+    else:
+        raise ValueError("approval must be 'strict' or 'sanity'")
     return {"mode":"PAPER_ONLY", "winner":asdict(winner),
-            "generations":history, "out_of_sample":validation,
+            "generations":[], "out_of_sample":validation,
             "walk_forward":walk_forward,
-            "approved_for_paper":approved,
-            "approval_rule":("Holdout por moeda: >= %d operacoes completas, sem stop de "
-                             "risco, com lucro (melhor que ficar em caixa). Walk-forward: %d janelas, >= %d com "
-                             "operacao e >= %d sem prejuizo, nenhuma com stop de risco. "
-                             "buy_hold_equity e so comparacao.")
-                            % (min_round_trips, WALK_FORWARD_WINDOWS,
-                               MIN_GOOD_WINDOWS, MIN_GOOD_WINDOWS),
+            "approved_for_paper":approved, "approval":approval, "approval_rule":rule,
             "history_candles":{s:len(c) for s, c in data.items()},
-            "warning":"Indicator evolution is experimental. Holdout is not live evidence."}
+            "warning":"Pesquisa em dados passados. Nao garante resultado futuro."}
+
+
+def validate_genome(data, genome, capital=100.0, max_loss=RESEARCH_MAX_LOSS,
+                    approval="sanity", min_round_trips=MIN_HOLDOUT_ROUND_TRIPS):
+    """Check a fixed genome (e.g. ROBUST_TREND) on the last 30% of the history."""
+    for candles in data.values():
+        if len(candles) < 180:
+            raise ValueError("At least 180 completed candles required")
+    splits = {s:int(len(c)*.7) for s, c in data.items()}
+    features = {s:Features(c) for s, c in data.items()}
+    return _validate(data, features, splits, genome, capital, max_loss, min_round_trips, approval)
+
+
+# Default strategy, chosen on 2 years of real Binance data (8 pairs, Nov/2024 to
+# Nov/2026) by WORST CASE across timeframes (4h/6h/12h) and sub-periods, not by
+# best profit: EMA 30/80 trend following, 100-candle trend filter, 3-ATR initial
+# stop and 2-ATR trailing stop. Results were similar for stops of 2 to 4 ATRs.
+ROBUST_TREND = IndicatorGenome(fast=30, slow=80, rsi_buy_max=100, rsi_sell_min=0,
+                               max_atr_percent=100, stop=0.0, take=0.0, kind="trend",
+                               trend_len=100, atr_stop=3.0, trail=2.0)
+
+# How the bot, colony and research CLIs pick a strategy:
+#   preset - ROBUST_TREND, checked for sanity on recent unseen data (default in CLIs)
+#   evolve - evolution of trend/breakout genomes starting from ROBUST_TREND, sanity check
+#   legacy - free evolution over every family with the strict approval rule
+STRATEGIES = ("preset", "evolve", "legacy")
+
+
+def research_plan(strategy):
+    """(fixed_genome, evolve_kwargs): exactly one of them is not None."""
+    if strategy == "preset":
+        return ROBUST_TREND, None
+    if strategy == "evolve":
+        return None, {"kinds": ("trend", "breakout"), "initial": (ROBUST_TREND,),
+                      "approval": "sanity"}
+    if strategy == "legacy":
+        return None, {}
+    raise ValueError("strategy must be one of: " + ", ".join(STRATEGIES))

@@ -2,7 +2,7 @@
 
 SIMULATION ONLY: never sends orders (not even to the testnet).
 
-  python colony.py --backtest --days 180      # research + colony on unseen data
+  python colony.py --backtest                 # 2 years: research + colony on unseen data
   python colony.py --live                     # hourly paper colony, state saved
 
 Live mode seeds bots only from a research-approved strategy. If every bot dies,
@@ -18,7 +18,8 @@ from pathlib import Path
 
 from trader.colony import (Colony, ColonyConfig, HOUR_MS, View, candle_day, run_backtest,
                            seed_genomes)
-from trader.indicator_evolution import Features, evolve_indicators
+from trader.indicator_evolution import (STRATEGIES, Features, evolve_indicators, research_plan,
+                                        validate_genome)
 from trader.market import Market, align_by_time, resample
 from trader.strategies import Snapshot
 
@@ -44,8 +45,10 @@ class LiveColony:
     """Hourly paper colony on public Binance data, persisted after every step."""
 
     def __init__(self, market, symbols, config, state_path, history_candles=2160,
-                 bots=12, generations=5, timeframe_hours=1):
+                 bots=12, generations=5, timeframe_hours=1, strategy="legacy"):
         self.timeframe_hours = timeframe_hours
+        self.strategy = strategy
+        research_plan(strategy)
         self.market, self.symbols, self.state_path = market, sorted(symbols), state_path
         self.history_candles, self.bots, self.generations = history_candles, bots, generations
         self.last_research_t = None
@@ -58,6 +61,8 @@ class LiveColony:
                 raise ValueError("Estado da colonia usa outras moedas; use outro --state")
             if state.get("timeframe_hours", 1) != timeframe_hours:
                 raise ValueError("Estado da colonia usa outro --timeframe; use outro --state")
+            if state.get("strategy", "legacy") != strategy:
+                raise ValueError("Estado da colonia usa outra --strategy; use outro --state")
             self.colony = Colony.from_dict(state["colony"])
             self.last_research_t = state.get("last_research_t")
         else:
@@ -66,6 +71,7 @@ class LiveColony:
     def save(self):
         atomic_write(self.state_path, {"symbols": self.symbols, "colony": self.colony.to_dict(),
                                        "timeframe_hours": self.timeframe_hours,
+                                       "strategy": self.strategy,
                                        "last_research_t": self.last_research_t})
 
     def current_price(self, symbol, candles):
@@ -81,8 +87,10 @@ class LiveColony:
         c = self.colony.config
         if (not self.colony.alive() and self.colony.pool >= c.min_bot_capital
                 and (self.last_research_t is None or t - self.last_research_t >= 24)):
-            research = evolve_indicators(data, capital=c.capital, bots=self.bots,
-                                         generations=self.generations, seed=c.seed + t)
+            fixed, plan = research_plan(self.strategy)
+            research = (validate_genome(data, fixed, c.capital) if fixed is not None else
+                        evolve_indicators(data, capital=c.capital, bots=self.bots,
+                                          generations=self.generations, seed=c.seed + t, **plan))
             self.last_research_t = t
             self.last_research = research
             LOG.info("research approved=%s winner=%s", research["approved_for_paper"],
@@ -93,7 +101,12 @@ class LiveColony:
         features = {s: Features(candles) for s, candles in data.items()}
         views = {s: View(Snapshot(features[s], n), self.current_price(s, hourly[s]))
                  for s in self.symbols}
-        events = self.colony.step(t, candle_day(first[-1], n), views)
+        closed_at = ((first[-1].open_time or 0) + self.timeframe_hours * HOUR_MS) / 1000
+        if first[-1].open_time is not None and time.time() - closed_at > 3600:
+            # Started long after this candle closed: wait for the next one, like the bot.
+            events = []
+        else:
+            events = self.colony.step(t, candle_day(first[-1], n), views)
         self.save()
         summary = self.colony.summary({s: v.price for s, v in views.items()})
         summary["new_events"] = events
@@ -125,31 +138,39 @@ def main():
     p.add_argument("--symbols", nargs="+", default=["BTCUSDT", "ETHUSDT"])
     p.add_argument("--days", type=int, default=None,
                    help="Historico de 1h (padrao: 180 no backtest, 90 ao vivo)")
-    p.add_argument("--timeframe", type=int, default=1, choices=(1, 2, 4, 6, 12),
-                   help="Horas por candle usadas pelas estrategias (padrao 1)")
+    p.add_argument("--timeframe", type=int, default=6, choices=(1, 2, 4, 6, 12),
+                   help="Horas por candle usadas pelas estrategias (padrao 6)")
+    p.add_argument("--strategy", choices=STRATEGIES, default="preset",
+                   help="preset (padrao), evolve ou legacy; veja o README")
     p.add_argument("--capital", type=float, default=100.0)
     p.add_argument("--max-bots", type=int, default=10)
     p.add_argument("--initial-bots", type=int, default=4)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--idle-days", type=int, default=14,
+                   help="Bot morre apos N dias sem completar operacao (padrao 14)")
+    p.add_argument("--reproduce-trades", type=int, default=10,
+                   help="Operacoes completas para poder se reproduzir (padrao 10)")
     p.add_argument("--state", default="data/colony-state.json")
     p.add_argument("--ignore-approval", action="store_true",
                    help="So backtest: cria a colonia mesmo se a pesquisa reprovar (estudo)")
     a = p.parse_args()
-    days = a.days or (90 if a.live else 180)
+    days = a.days or (180 if a.live else 730)
     if days < 10:
         p.error("--days deve ser pelo menos 10")
     config = ColonyConfig(capital=a.capital, max_bots=a.max_bots,
-                          initial_bots=a.initial_bots, seed=a.seed)
+                          initial_bots=a.initial_bots, seed=a.seed,
+                          max_idle_hours=a.idle_days * 24,
+                          reproduce_min_round_trips=a.reproduce_trades)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     market = Market()
     if a.live:
         LiveColony(market, a.symbols, config, a.state, history_candles=days * 24,
-                   timeframe_hours=a.timeframe).run(once=a.once)
+                   timeframe_hours=a.timeframe, strategy=a.strategy).run(once=a.once)
         return
     hourly = align_by_time({s: market.ohlcv(s, days * 24) for s in a.symbols})
     data = {s: resample(c, a.timeframe) for s, c in hourly.items()}
     report = run_backtest(data, config, ignore_approval=a.ignore_approval,
-                          hours_per_candle=a.timeframe)
+                          hours_per_candle=a.timeframe, strategy=a.strategy)
     print(json.dumps(report, indent=2, ensure_ascii=False))
 
 

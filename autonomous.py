@@ -20,7 +20,8 @@ from decimal import Decimal
 
 from trader.broker import PaperBroker, TestnetBroker, client_order_id
 from trader.execution import Limits, PaperPortfolio
-from trader.indicator_evolution import evolve_indicators, IndicatorGenome
+from trader.indicator_evolution import (STRATEGIES, IndicatorGenome, evolve_indicators,
+                                        research_plan, validate_genome)
 from trader.indicator_evolution import Features
 from trader.market import resample
 from trader.strategies import (Position, Snapshot, advance, exit_reason, open_position,
@@ -36,7 +37,7 @@ class AutonomousPaperBot:
     def __init__(self, market=None, symbols=None, capital="100",
                  bots=12, generations=5, seed=42, retrain_cycles=24,
                  state_path=None, memory_path=None, history_candles=2160,
-                 testnet_api=None, timeframe_hours=1):
+                 testnet_api=None, timeframe_hours=1, strategy="legacy"):
         if bots < 2 or generations < 1 or retrain_cycles < 1:
             raise ValueError("Invalid evolution configuration")
         self.market = market if market is not None else Market()
@@ -46,6 +47,8 @@ class AutonomousPaperBot:
                        else PaperBroker(self.portfolio))
         self.history_candles = history_candles
         self.timeframe_hours = timeframe_hours
+        self.strategy = strategy
+        research_plan(strategy)  # validate the name early
         self.position_meta = {}
         self.pending_order = None
         self.bots, self.generations, self.seed = bots, generations, seed
@@ -163,6 +166,25 @@ class AutonomousPaperBot:
             self.checkpoint()
         self.broker.reconcile()
 
+    FRESH_SECONDS = 3600
+
+    def signal_is_fresh(self, candles):
+        """Entries only within an hour of the candle's close (exits are never blocked)."""
+        last=candles[-1]
+        if last.open_time is None:
+            return True
+        closed_at=(last.open_time+self.timeframe_hours*3_600_000)/1000
+        return time.time()-closed_at <= self.FRESH_SECONDS
+
+    def research(self, data):
+        capital = float(self.portfolio.limits.capital)
+        fixed, plan = research_plan(self.strategy)
+        if fixed is not None:
+            return validate_genome(data, fixed, capital)
+        return evolve_indicators(data, capital=capital, bots=self.bots,
+                                 generations=self.generations,
+                                 seed=self.seed+self.cycle_number, **plan)
+
     def cycle(self):
         # Fetch all histories before mutating any portfolio state.
         hourly = align_by_time({symbol:self.market.ohlcv(symbol,self.history_candles)
@@ -171,9 +193,7 @@ class AutonomousPaperBot:
                 if self.timeframe_hours != 1 else hourly)
         self.settle_broker()
         if self.genome is None or self.cycle_number % self.retrain_cycles == 0:
-            report = evolve_indicators(data, capital=float(self.portfolio.limits.capital),
-                                       bots=self.bots, generations=self.generations,
-                                       seed=self.seed+self.cycle_number)
+            report = self.research(data)
             self.last_report = report
             self.approved = report["approved_for_paper"]
             # Keep an existing exit policy for open positions even if new
@@ -244,6 +264,11 @@ class AutonomousPaperBot:
                         self.checkpoint()
                         decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,
                                           "action":"WAIT","reason":"EXIT_FAILED: "+str(exc)})
+            elif self.approved and not self.signal_is_fresh(candles):
+                # Started (or restarted) long after this candle closed: the
+                # backtest would have bought at that candle's close, not now.
+                decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,
+                                  "action":"WAIT","reason":"STALE_CANDLE"})
             elif self.approved and wants_entry(snapshot,self.genome):
                 context = entry_context(symbol,hourly[symbol],btc_change)
                 if not context["allow_buy"]:
@@ -314,10 +339,13 @@ def main():
     parser.add_argument("--interval",type=int,default=3600)
     parser.add_argument("--capital",default="100")
     parser.add_argument("--symbols",nargs="+",default=["BTCUSDT","ETHUSDT"])
-    parser.add_argument("--days",type=int,default=90,
-                        help="Dias de historico de 1h para treinar/validar (padrao 90)")
-    parser.add_argument("--timeframe",type=int,default=1,choices=(1,2,4,6,12),
-                        help="Horas por candle usadas pela estrategia (padrao 1)")
+    parser.add_argument("--days",type=int,default=180,
+                        help="Dias de historico para validar/treinar (padrao 180)")
+    parser.add_argument("--strategy",choices=STRATEGIES,default="preset",
+                        help="preset: tendencia robusta fixa (padrao); evolve: evolucao a partir "
+                             "dela; legacy: evolucao livre com aprovacao estrita")
+    parser.add_argument("--timeframe",type=int,default=6,choices=(1,2,4,6,12),
+                        help="Horas por candle usadas pela estrategia (padrao 6)")
     parser.add_argument("--mode",choices=("paper","testnet"),default="paper")
     parser.add_argument("--confirm-testnet",action="store_true",
                         help="Obrigatorio com --mode testnet: envia ordens FICTICIAS a Testnet")
@@ -340,7 +368,7 @@ def main():
                            memory_path=args.memory or ("data/market-memory.sqlite3" if prefix=="paper"
                                                        else "data/testnet-memory.sqlite3"),
                            history_candles=args.days*24,testnet_api=api,
-                           timeframe_hours=args.timeframe)
+                           timeframe_hours=args.timeframe,strategy=args.strategy)
     bot.run(interval=args.interval,once=args.once)
 
 

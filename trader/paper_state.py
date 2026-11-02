@@ -28,6 +28,7 @@ def save(bot, path):
         "trades":p.trades,"position_owners":bot.position_owners,"entries":{k:str(v) for k,v in getattr(bot,"entries",{}).items()},
         "position_meta":getattr(bot,"position_meta",{}),
         "timeframe_hours":getattr(bot,"timeframe_hours",1),
+        "strategy":getattr(bot,"strategy","legacy"),
         "cycle_number":bot.cycle_number,"approved":bot.approved,
         "genome":vars(bot.genome) if bot.genome else None,
         "last_candle":{k:(v if isinstance(v,int) else list(v)) for k,v in bot.last_candle.items()}
@@ -75,4 +76,6 @@ def load(bot, path):
     bot.position_meta=state.get("position_meta",{})
     if state.get("timeframe_hours",1)!=getattr(bot,"timeframe_hours",1):
         raise ValueError("Paper state was created with another --timeframe; use another --state")
+    if state.get("strategy","legacy")!=getattr(bot,"strategy","legacy"):
+        raise ValueError("Paper state was created with another --strategy; use another --state")
     return True

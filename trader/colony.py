@@ -22,7 +22,8 @@ import random
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime, timezone
 
-from trader.indicator_evolution import Features, IndicatorGenome, _mutate, evolve_indicators
+from trader.indicator_evolution import (Features, IndicatorGenome, _mutate, evolve_indicators,
+                                        research_plan, validate_genome)
 from trader.strategies import Position, Snapshot, advance, exit_reason, open_position, wants_entry
 
 MIN_ORDER_QUOTE = 5.0  # Binance spot minimum notional for common USDT pairs
@@ -365,8 +366,16 @@ def views_at(features, i):
     return {s: View(Snapshot(f, i), f.exec_price[i]) for s, f in features.items()}
 
 
+def colony_research(data, strategy, capital, bots, generations, seed):
+    fixed, plan = research_plan(strategy)
+    if fixed is not None:
+        return validate_genome(data, fixed, capital)
+    return evolve_indicators(data, capital=capital, bots=bots, generations=generations,
+                             seed=seed, **plan)
+
+
 def run_backtest(data, config=ColonyConfig(), research_fraction=0.7, bots=12,
-                 generations=5, ignore_approval=False, hours_per_candle=1):
+                 generations=5, ignore_approval=False, hours_per_candle=1, strategy="legacy"):
     """Research on the first part of the history, then run the colony on the rest.
 
     The colony period is never seen by the research. `ignore_approval` seeds
@@ -381,11 +390,12 @@ def run_backtest(data, config=ColonyConfig(), research_fraction=0.7, bots=12,
     cut = int(n * research_fraction)
     if cut < 180 or n - cut < 48:
         raise ValueError("Historico curto: precisa de >= 180 candles de pesquisa e 48 de colonia")
-    research = evolve_indicators({s: c[:cut] for s, c in data.items()}, capital=config.capital,
-                                 bots=bots, generations=generations, seed=config.seed)
+    research = colony_research({s: c[:cut] for s, c in data.items()}, strategy, config.capital,
+                               bots, generations, config.seed)
     report = {"mode": "PAPER_COLONY_BACKTEST", "research_candles": cut,
               "colony_candles": n - cut, "research_approved": research["approved_for_paper"],
-              "winner": research["winner"], "hours_per_candle": hours_per_candle}
+              "winner": research["winner"], "hours_per_candle": hours_per_candle,
+              "strategy": strategy, "approval_rule": research.get("approval_rule")}
     if not research["approved_for_paper"] and not ignore_approval:
         report["status"] = "REJECTED_RESEARCH"
         report["note"] = "Pesquisa nao aprovou estrategia; colonia nao foi criada."

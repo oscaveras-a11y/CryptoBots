@@ -15,7 +15,8 @@ import json
 import sys
 from dataclasses import asdict
 
-from trader.indicator_evolution import Features, IndicatorGenome, evolve_indicators, replay
+from trader.indicator_evolution import (RESEARCH_MAX_LOSS, ROBUST_TREND, Features, IndicatorGenome,
+                                        evolve_indicators, replay)
 from trader.market import align_by_time, resample
 from trader.strategies import KINDS
 from trader.strategy import Candle
@@ -35,8 +36,20 @@ def load_csv(path):
     return data
 
 
+def research_summary(research, capital):
+    """Portfolio-level view of the research holdout, for testing approval rules."""
+    holdout = research["out_of_sample"].values()
+    windows = list(zip(*research["walk_forward"].values()))
+    return {"holdout_mean": round(sum(r["equity"] for r in holdout) / len(holdout), 4),
+            "holdout_round_trips": sum(r["round_trips"] for r in holdout),
+            "holdout_profitable_share": round(sum(r["equity"] > capital for r in holdout) / len(holdout), 3),
+            "holdout_dead": sum(r["dead"] for r in holdout),
+            "window_means": [round(sum(w["equity"] for w in ws) / len(ws), 4) for ws in windows]}
+
+
 def walk_forward(data, timeframe=4, train_days=180, test_days=60, bots=16, generations=8,
-                 seed=42, kinds=KINDS, capital=100.0, train_symbols=None):
+                 seed=42, kinds=KINDS, capital=100.0, train_symbols=None, initial=(),
+                 fixed=None):
     data = align_by_time({s: resample(c, timeframe) for s, c in data.items()})
     symbols = sorted(data)
     train_symbols = sorted(train_symbols or symbols)
@@ -50,15 +63,16 @@ def walk_forward(data, timeframe=4, train_days=180, test_days=60, bots=16, gener
         cut, end = start + train, start + train + test
         research = evolve_indicators({s: data[s][start:cut] for s in train_symbols},
                                      capital=capital, bots=bots, generations=generations,
-                                     seed=seed + start, kinds=kinds)
-        genome = IndicatorGenome(**research["winner"])
-        results = {s: replay(data[s], genome, capital, start=cut, end=end, features=features[s])
-                   for s in symbols}
+                                     seed=seed + start, kinds=kinds, initial=initial)
+        genome = fixed or IndicatorGenome(**research["winner"])
+        results = {s: replay(data[s], genome, capital, start=cut, end=end, features=features[s],
+                             max_loss=RESEARCH_MAX_LOSS) for s in symbols}
         strategy = sum(r["equity"] for r in results.values()) / len(results)
         hold = sum(r["buy_hold_equity"] for r in results.values()) / len(results)
         first, last = data[symbols[0]][cut].open_time, data[symbols[0]][end - 1].open_time
         folds.append({"test_from_ms": first, "test_to_ms": last,
                       "approved": research["approved_for_paper"], "kind": genome.kind,
+                      "research": research_summary(research, capital),
                       "winner": asdict(genome),
                       "strategy_equity": round(strategy, 4),
                       "traded_equity": round(strategy if research["approved_for_paper"] else capital, 4),
@@ -91,7 +105,7 @@ def walk_forward(data, timeframe=4, train_days=180, test_days=60, bots=16, gener
 def main():
     p = argparse.ArgumentParser(description="Avaliacao walk-forward honesta (somente pesquisa)")
     p.add_argument("csv")
-    p.add_argument("--timeframe", type=int, default=4, choices=(1, 2, 4, 6, 12, 24))
+    p.add_argument("--timeframe", type=int, default=6, choices=(1, 2, 4, 6, 12, 24))
     p.add_argument("--train-days", type=int, default=180)
     p.add_argument("--test-days", type=int, default=60)
     p.add_argument("--bots", type=int, default=16)
@@ -100,10 +114,13 @@ def main():
     p.add_argument("--kinds", nargs="+", default=list(KINDS), choices=KINDS)
     p.add_argument("--train-symbols", nargs="+",
                    help="Treinar so nestas moedas e testar em todas (checa generalizacao)")
+    p.add_argument("--preset", action="store_true",
+                   help="Operar sempre a estrategia fixa ROBUST_TREND (sem evolucao)")
     p.add_argument("--summary", action="store_true", help="Sem detalhes por janela")
     a = p.parse_args()
     report = walk_forward(load_csv(a.csv), a.timeframe, a.train_days, a.test_days, a.bots,
-                          a.generations, a.seed, a.kinds, train_symbols=a.train_symbols)
+                          a.generations, a.seed, a.kinds, train_symbols=a.train_symbols,
+                          fixed=ROBUST_TREND if a.preset else None)
     if a.summary:
         report["fold_details"] = [{k: f[k] for k in ("approved", "kind", "strategy_equity",
                                                       "buy_hold_equity", "round_trips")}
