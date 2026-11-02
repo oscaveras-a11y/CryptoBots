@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import time
 from dataclasses import dataclass
 from decimal import Decimal
@@ -11,6 +12,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 TESTNET = 'https://testnet.binance.vision/api/v3/'
+CLIENT_ID = re.compile(r'[.A-Z:/a-z0-9_-]{1,36}')
 
 def dec(x):
     d = Decimal(str(x))
@@ -130,9 +132,38 @@ class PaperPortfolio:
         self.trades.append({'side':'SELL','symbol':symbol,'quantity':str(qty),'price':str(execution),'fee_quote':str(gross*self.limits.fee),'mode':'PAPER'})
         return gross
 
+    def apply_fill(self, side, symbol, base_quantity, quote_amount, fee_quote=Decimal(0),
+                   mode='TESTNET', details=None):
+        """Book a fill CONFIRMED by an exchange (testnet). No limits are checked
+        here: the broker checks them before sending, and a confirmed fill must be
+        recorded whatever happened. base_quantity is net of base-asset fees."""
+        qty, quote, fee = dec(base_quantity), dec(quote_amount), dec(fee_quote)
+        if qty < 0 or quote < 0 or fee < 0:
+            raise ValueError('Invalid fill')
+        held = self.holdings.get(symbol, Decimal(0))
+        if side == 'BUY':
+            if quote + fee > self.cash:
+                raise RuntimeError('Confirmed fill exceeds local cash; manual review required')
+            self.cash -= quote + fee
+            self.holdings[symbol] = held + qty
+        elif side == 'SELL':
+            if qty > held:
+                raise RuntimeError('Confirmed sell exceeds local position; manual review required')
+            self.cash += quote - fee
+            self.holdings[symbol] = held - qty
+        else:
+            raise ValueError('Invalid side')
+        price = quote / qty if qty else Decimal(0)
+        trade = {'side':side,'symbol':symbol,'quantity':str(qty),'price':str(price),
+                 'quote':str(quote),'fee_quote':str(fee),'mode':mode}
+        trade.update(details or {})
+        self.trades.append(trade)
+        return trade
+
 class BinanceSpotTestnet:
     """Only testnet API keys and testnet endpoints. No real orders."""
-    ALLOWED_PATHS = ('ping', 'time', 'account', 'order/test', 'order')
+    ALLOWED_PATHS = ('ping', 'time', 'account', 'order/test', 'order',
+                     'exchangeInfo', 'ticker/price')
 
     def __init__(self, key=None, secret=None, recv_window=5000):
         self.key = key if key is not None else os.environ.get('BINANCE_TESTNET_API_KEY','')
@@ -221,23 +252,36 @@ class BinanceSpotTestnet:
         return self.request('account', signed=True)
 
     @staticmethod
-    def _order_params(symbol, side, quantity):
+    def _order_params(symbol, side, quantity=None, quote_quantity=None, client_id=None):
         if side not in ('BUY','SELL') or not isinstance(symbol, str) or not symbol.endswith('USDT'):
             raise ValueError('Only USDT spot orders supported')
-        return {'symbol':symbol.upper(),'side':side,'type':'MARKET',
-                'quantity':format_quantity(quantity)}
+        if (quantity is None) == (quote_quantity is None):
+            raise ValueError('Give exactly one of quantity or quote_quantity')
+        params = {'symbol':symbol.upper(),'side':side,'type':'MARKET'}
+        if quantity is not None:
+            params['quantity'] = format_quantity(quantity)
+        else:
+            params['quoteOrderQty'] = format_quantity(quote_quantity)
+        if client_id is not None:
+            if not CLIENT_ID.fullmatch(str(client_id)):
+                raise ValueError('Invalid client order id')
+            params['newClientOrderId'] = str(client_id)
+        return params
 
     def test_order(self, symbol, side, quantity):
         # This endpoint validates an order but does not execute it.
         return self.request('order/test', self._order_params(symbol, side, quantity),
                             method='POST', signed=True)
 
-    def place_testnet_order(self, symbol, side, quantity):
+    def place_testnet_order(self, symbol, side, quantity=None, client_id=None,
+                            quote_quantity=None):
         """EXECUTES a fictitious MARKET order on Binance Spot Testnet ONLY.
 
         Caller must explicitly authorize the action. Uses testnet credentials.
+        `quote_quantity` spends an exact USDT amount (BUY); `client_id` makes the
+        order traceable so an uncertain result can be looked up, never resent.
         """
-        params = self._order_params(symbol, side, quantity)
+        params = self._order_params(symbol, side, quantity, quote_quantity, client_id)
         params['newOrderRespType'] = 'FULL'
         return self.request('order', params, method='POST', signed=True)
 
@@ -246,3 +290,19 @@ class BinanceSpotTestnet:
             raise ValueError('Invalid testnet order reference')
         return self.request('order', {'symbol':symbol,'orderId':int(order_id)},
                             signed=True)
+
+    def order_by_client_id(self, symbol, client_id):
+        if not symbol.endswith('USDT') or not CLIENT_ID.fullmatch(str(client_id)):
+            raise ValueError('Invalid testnet order reference')
+        return self.request('order', {'symbol':symbol,'origClientOrderId':str(client_id)},
+                            signed=True)
+
+    def symbol_info(self, symbol):
+        info = self.request('exchangeInfo', {'symbol':symbol})
+        symbols = info.get('symbols', []) if isinstance(info, dict) else []
+        if len(symbols) != 1 or symbols[0].get('symbol') != symbol:
+            raise RuntimeError('Par nao encontrado na Testnet: ' + symbol)
+        return symbols[0]
+
+    def ticker_price(self, symbol):
+        return float(self.request('ticker/price', {'symbol':symbol})['price'])

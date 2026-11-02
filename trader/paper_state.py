@@ -1,4 +1,4 @@
-"""Atomic JSON snapshots for the autonomous PAPER portfolio.
+"""Atomic JSON snapshots for the autonomous bot portfolio (PAPER or TESTNET).
 
 Never stores credentials. Writes replace atomically; malformed state fails closed.
 """
@@ -11,19 +11,24 @@ from pathlib import Path
 from trader.indicator_evolution import IndicatorGenome
 
 
+def state_mode(bot):
+    broker=getattr(bot,"broker",None)
+    return "TESTNET" if broker is not None and broker.mode=="TESTNET" else "PAPER_ONLY"
+
+
 def save(bot, path):
     target=Path(path)
     target.parent.mkdir(parents=True,exist_ok=True)
     p=bot.portfolio
     payload={
-        "schema":1,"mode":"PAPER_ONLY",
+        "schema":1,"mode":state_mode(bot),"pending_order":getattr(bot,"pending_order",None),
         "symbols":bot.symbols,"initial_capital":str(p.limits.capital),
         "cash":str(p.cash),"holdings":{k:str(v) for k,v in p.holdings.items()},
         "start_of_day":str(p.start_of_day),"day":p.day,
         "trades":p.trades,"position_owners":bot.position_owners,"entries":{k:str(v) for k,v in getattr(bot,"entries",{}).items()},
         "cycle_number":bot.cycle_number,"approved":bot.approved,
         "genome":vars(bot.genome) if bot.genome else None,
-        "last_candle":{k:list(v) for k,v in bot.last_candle.items()}
+        "last_candle":{k:(v if isinstance(v,int) else list(v)) for k,v in bot.last_candle.items()}
     }
     fd,name=tempfile.mkstemp(prefix=".cryptobots-",suffix=".tmp",dir=target.parent)
     try:
@@ -43,7 +48,7 @@ def load(bot, path):
         return False
     with target.open(encoding="utf-8") as stream:
         state=json.load(stream)
-    if (state.get("schema")!=1 or state.get("mode")!="PAPER_ONLY"
+    if (state.get("schema")!=1 or state.get("mode")!=state_mode(bot)
         or state.get("symbols")!=bot.symbols
         or state.get("initial_capital")!=str(bot.portfolio.limits.capital)):
         raise ValueError("Incompatible paper state; refusing to start")
@@ -62,5 +67,7 @@ def load(bot, path):
     bot.cycle_number=int(state["cycle_number"])
     bot.approved=bool(state["approved"])
     bot.genome=IndicatorGenome(**state["genome"]) if state["genome"] else None
-    bot.last_candle={k:tuple(tuple(x) for x in v) for k,v in state["last_candle"].items()}
+    bot.last_candle={k:(v if isinstance(v,int) else tuple(tuple(x) for x in v))
+                     for k,v in state["last_candle"].items()}
+    bot.pending_order=state.get("pending_order")
     return True

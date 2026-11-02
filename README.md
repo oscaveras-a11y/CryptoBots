@@ -8,7 +8,7 @@ Instale Python 3.11+ e execute no PowerShell, na pasta do projeto:
 
 ```powershell
 python -m unittest discover -s tests -v
-python main.py --capital 100 --bots 20 --generations 8 --seed 42
+python main.py --capital 100 --bots 20 --generations 8 --seed 42 --days 90
 ```
 
 O comando `main.py` baixa candles públicos da Binance, avalia estratégias por algoritmo evolutivo e imprime resultado de backtest com validação fora da amostra. Requer internet e acesso ao endpoint público. **O capital 100 é uma unidade virtual de cotação (USDT nos pares utilizados), NÃO uma conversão automática de R$100.** Cada estratégia é avaliada sobre o mesmo capital virtual, não há distribuição real do patrimônio entre bots.
@@ -82,3 +82,44 @@ O script reinicia o processo caso encerre, mas nao inicia automaticamente apos r
 O saldo ficticio fica em `data/paper-state.json`, ignorado pelo Git.
 Nao rode duas instancias simultaneas nem apague o estado para continuar uma carteira existente.
 As operacoes sao apenas simuladas e nao garantem lucro. O saldo 100 e virtual, nao R$100.
+
+### Como a estrategia e treinada e aprovada
+
+- **Historico:** o bot usa **90 dias** de candles de 1h, cerca de 2.160 por moeda. Para mudar, use `--days`. A Binance entrega no maximo 1.000 candles por pedido, entao o historico e baixado em partes. Se faltar alguma hora na sequencia, o bot para em vez de treinar com dados furados. Quando ha mais de uma moeda, as series sao alinhadas pelo horario.
+- **Divisao dos dados:** 70% para treinar, cerca de 63 dias. Os 30% finais, cerca de 27 dias, sao usados uma unica vez, depois da escolha.
+- **Regra de aprovacao:**
+  - na validacao, cada moeda precisa ter **pelo menos 3 operacoes completas**, terminar sem prejuizo e nao bater o limite de perda;
+  - os mesmos 27 dias sao divididos em **4 janelas de cerca de 1 semana**: pelo menos 3 precisam ter operacao, pelo menos 3 precisam terminar sem prejuizo, e nenhuma pode bater o limite de perda;
+  - o relatorio tambem mostra `buy_hold_equity`, quanto daria comprar e segurar a moeda no mesmo periodo. Serve so para comparacao.
+- **Execucao igual no teste e no bot:** a decisao usa so candles fechados. No backtest, a execucao acontece na abertura do candle seguinte. No bot, o ciclo comeca 20 s depois da virada da hora e usa o preco atual da Binance.
+
+E esperado que poucas estrategias sejam aprovadas. A regra existe para nao aprovar por sorte.
+
+## Bot autonomo na Binance Spot Testnet (ordens ficticias)
+
+```powershell
+$env:BINANCE_TESTNET_API_KEY='SUA_CHAVE_DE_TESTE'
+$env:BINANCE_TESTNET_API_SECRET='SEU_SEGREDO_DE_TESTE'
+python autonomous.py --mode testnet --confirm-testnet
+```
+
+O bot envia ordens MARKET **so a Testnet**, com saldo ficticio. Nao existe endereco da Binance real no codigo. O estado fica em `data/testnet-state.json`, separado do estado da simulacao, e um arquivo nao pode ser usado no lugar do outro.
+
+**Antes de enviar uma ordem:**
+- confere os filtros do par na Testnet (tamanho minimo, casas decimais, valor minimo) e o saldo de USDT;
+- nao compra se o preco da Testnet estiver mais de 2% longe do preco do mercado real. Vendas de saida nao sao bloqueadas por isso;
+- respeita os mesmos limites de risco da simulacao: 10% por posicao, 3% de perda no dia e 8% de perda total.
+
+**Durante o envio:**
+- cada ordem leva um ID unico (`cb-B-BTCUSDT-<horario do candle>`);
+- se a conexao cair ou a Binance responder erro 5xx, o bot **consulta esse ID** em vez de reenviar. Assim nunca compra em dobro;
+- antes de enviar, o bot salva a ordem como pendente. Se o PC desligar no meio, o proximo ciclo confere o resultado na Binance e registra.
+
+**Na carteira local:**
+- ela so muda depois que a Binance confirma a execucao, com a quantidade, o valor e a taxa reais;
+- compras usam um valor exato em USDT (`quoteOrderQty`). Vendas arredondam a quantidade para baixo, conforme o par;
+- sobras abaixo do minimo da corretora sao zeradas localmente e registradas como `dust_written_off`.
+
+**A cada ciclo:** o bot compara as posicoes locais com o saldo da Testnet. Se nao bater, ele para e avisa. Isso acontece, por exemplo, quando a Binance reinicia a Testnet, o que e periodico.
+
+Os sinais vem dos dados publicos do mercado real. Os precos da Testnet podem ser diferentes, e o livro de ofertas e fino, entao o resultado na Testnet nao representa o resultado com dinheiro real.

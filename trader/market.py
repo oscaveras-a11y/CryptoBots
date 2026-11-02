@@ -9,6 +9,7 @@ BASE = "https://api.binance.com/api/v3/"
 # main host is region-blocked (HTTP 451/403) for this IP.
 MIRROR = "https://data-api.binance.vision/api/v3/"
 RETRY_STATUS = (418, 429, 500, 502, 503, 504)
+HOUR_MS = 3_600_000
 
 
 class Market:
@@ -80,18 +81,66 @@ class Market:
             raise RuntimeError("Histórico insuficiente ou inválido: " + symbol)
         return values
 
-    def ohlcv(self, symbol, limit=350):
-        """Completed hourly candles only; never train on unfinished current bar."""
+    def ohlcv(self, symbol, limit=350, now_ms=None):
+        """Last `limit` completed hourly candles, oldest first.
+
+        Binance returns at most 1000 klines per request, so longer histories are
+        fetched backwards in pages. The unfinished current bar is never used.
+        Gaps or duplicates in the hourly sequence fail closed.
+        """
         from time import time
         from trader.strategy import Candle
-        rows = self.get("klines", {"symbol":symbol,"interval":"1h","limit":limit})
-        now_ms = int(time()*1000)
-        closed = [row for row in rows if int(row[6]) < now_ms]
-        if len(closed) < 180:
+        if limit < 1:
+            raise ValueError("limit must be positive")
+        now_ms = int(time()*1000) if now_ms is None else now_ms
+        rows = {}
+        end_time = None
+        while len(rows) < limit + 1:
+            params = {"symbol":symbol,"interval":"1h",
+                      "limit":min(1000, limit + 1 - len(rows))}
+            if end_time is not None:
+                params["endTime"] = end_time
+            page = self.get("klines", params)
+            if not page:
+                break
+            for row in page:
+                rows[int(row[0])] = row
+            earliest = min(int(row[0]) for row in page)
+            if end_time is not None and earliest >= end_time:
+                break  # no progress; avoid an endless loop
+            end_time = earliest - 1
+            if len(page) < params["limit"]:
+                break  # reached the start of the pair's history
+        closed = [rows[k] for k in sorted(rows) if int(rows[k][6]) < now_ms][-limit:]
+        if len(closed) < min(limit, 180):
             raise RuntimeError("Historico fechado insuficiente: "+symbol)
-        candles = [Candle(float(r[4]),float(r[2]),float(r[3]),float(r[5]))
+        for previous, row in zip(closed, closed[1:]):
+            if int(row[0]) - int(previous[0]) != HOUR_MS:
+                raise RuntimeError("Historico com falha na sequencia horaria: "+symbol)
+        candles = [Candle(float(r[4]),float(r[2]),float(r[3]),float(r[5]),
+                          open=float(r[1]),open_time=int(r[0]))
                    for r in closed]
         for c in candles:
-            if c.low <= 0 or c.high < c.low or not c.low <= c.close <= c.high or c.volume < 0:
+            if (c.low <= 0 or c.high < c.low or not c.low <= c.close <= c.high
+                    or not c.low <= c.open <= c.high or c.volume < 0):
                 raise RuntimeError("Candle invalido: "+symbol)
         return candles
+
+    def price(self, symbol):
+        """Latest traded price (public ticker); used right after a candle closes."""
+        value = float(self.get("ticker/price", {"symbol":symbol})["price"])
+        if not value > 0:
+            raise RuntimeError("Preco invalido: "+symbol)
+        return value
+
+
+def align_by_time(data):
+    """Keep only hours present for every symbol, so all series share one clock.
+
+    Candles without open_time (old/offline data) are returned unchanged.
+    """
+    if not data or any(c.open_time is None for candles in data.values() for c in candles):
+        return data
+    common = set.intersection(*({c.open_time for c in candles} for candles in data.values()))
+    return {symbol:[c for c in candles if c.open_time in common]
+            for symbol,candles in data.items()}

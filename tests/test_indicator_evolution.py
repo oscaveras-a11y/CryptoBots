@@ -33,22 +33,32 @@ class IndicatorEvolutionTests(unittest.TestCase):
         self.assertGreaterEqual(winner_score+0.0001,
                                 max(g["best_train_score"] for g in result["generations"]))
 
-    def test_walk_forward_has_three_ordered_disjoint_windows(self):
+    def test_walk_forward_has_four_ordered_disjoint_windows(self):
         candles=self.candles(240)
         result=evolve_indicators({"SYNTHUSDT":candles},bots=4,generations=2,seed=7)
         windows=result["walk_forward"]["SYNTHUSDT"]
-        self.assertEqual(len(windows),3)
+        self.assertEqual(len(windows),4)
         self.assertEqual(windows[0]["start_index"],168)
         self.assertEqual(windows[-1]["end_index_exclusive"],240)
         for left,right in zip(windows,windows[1:]):
             self.assertEqual(left["end_index_exclusive"],right["start_index"])
+        holdout=result["out_of_sample"]["SYNTHUSDT"]
         self.assertEqual(result["approved_for_paper"],
-                         (result["out_of_sample"]["SYNTHUSDT"]["trades"]>0
-                          and not result["out_of_sample"]["SYNTHUSDT"]["dead"]
-                          and result["out_of_sample"]["SYNTHUSDT"]["equity"]>=100
-                          and sum(w["trades"]>0 for w in windows)>=2
+                         (holdout["round_trips"]>=3
+                          and not holdout["dead"]
+                          and holdout["equity"]>=100
+                          and sum(w["round_trips"]>0 for w in windows)>=3
                           and all(not w["dead"] for w in windows)
-                          and sum(w["equity"]>=100 for w in windows)>=2))
+                          and sum(w["equity"]>=100 for w in windows)>=3))
+
+    def test_single_lucky_trade_is_not_approved(self):
+        from unittest.mock import patch
+        import trader.indicator_evolution as ie
+        lucky={"equity":130.0,"trades":2,"round_trips":1,"winning_round_trips":1,
+               "drawdown":0.0,"dead":False,"buy_hold_equity":100.0}
+        with patch.object(ie,"_replay",return_value=lucky):
+            result=evolve_indicators({"SYNTHUSDT":self.candles()},bots=2,generations=1)
+        self.assertFalse(result["approved_for_paper"])
 
     def test_short_history_rejected(self):
         with self.assertRaises(ValueError):
