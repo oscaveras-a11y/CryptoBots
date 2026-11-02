@@ -72,6 +72,20 @@ class AutonomousPaperBot:
         payload = repr([(c.close,c.high,c.low,c.volume) for c in candles[-2:]])
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
+    def entry_price(self, symbol):
+        """Recorded entry, else last paper BUY price; None means exit (fail closed).
+
+        Never substitute the current price: that would silently disable stop/take.
+        """
+        entry=self.entries.get(symbol)
+        if entry is not None:
+            return float(entry)
+        for trade in reversed(self.portfolio.trades):
+            if trade.get("symbol")==symbol and trade.get("side")=="BUY":
+                self.entries[symbol]=float(trade["price"])
+                return self.entries[symbol]
+        return None
+
     def cycle(self):
         # Fetch all histories before mutating any portfolio state.
         data = {symbol:self.market.ohlcv(symbol,350) for symbol in self.symbols}
@@ -128,8 +142,9 @@ class AutonomousPaperBot:
             if position:
                 # Paper stop/take and sell signal; exits remain permitted if loss cap hit.
                 # Entry basis is recorded on each buy for stop/take.
-                entry=getattr(self,"entries",{}).get(symbol,price)
-                if (price<=entry*(1-self.genome.stop) or
+                entry=self.entry_price(symbol)
+                if (entry is None or
+                    price<=entry*(1-self.genome.stop) or
                     price>=entry*(1+self.genome.take) or
                     signal["action"]=="SELL" or
                     profile["rsi"]<self.genome.rsi_sell_min):
@@ -137,7 +152,8 @@ class AutonomousPaperBot:
                     self.entries.pop(symbol,None)
                     self.position_owners.pop(symbol,None)
                     self.checkpoint()
-                    decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,"action":"SELL","reason":"EXIT"})
+                    decisions.append({"bot_id":"strategy:"+symbol,"symbol":symbol,"action":"SELL",
+                                      "reason":"EXIT" if entry is not None else "MISSING_ENTRY_PRICE"})
             elif (self.approved and signal["action"]=="BUY" and
                   profile["rsi"]<=self.genome.rsi_buy_max and
                   profile["atr_percent"]<=self.genome.max_atr_percent and
@@ -155,8 +171,6 @@ class AutonomousPaperBot:
                     continue
                 try:
                     self.portfolio.buy(symbol,price,prices,today)
-                    if not hasattr(self,"entries"):
-                        self.entries={}
                     self.entries[symbol]=price
                     self.position_owners[symbol]="strategy:"+symbol
                     self.checkpoint()
@@ -177,7 +191,16 @@ class AutonomousPaperBot:
                 "equity":str(self.portfolio.equity(prices)),
                 "decisions":decisions,"trades":self.portfolio.trades[-10:]}
 
-    def run(self, interval=3600, once=False):
+    @staticmethod
+    def seconds_until_next(interval, now=None, settle=20):
+        """Wait so each cycle starts just after a candle closes (UTC boundary).
+
+        A fixed sleep(interval) drifts and can act on a candle almost one hour old.
+        """
+        now=time.time() if now is None else now
+        return interval-(now%interval)+settle
+
+    def run(self, interval=3600, once=False, align=True):
         if interval < 60:
             raise ValueError("Minimum polling interval is 60 seconds")
         while True:
@@ -190,7 +213,7 @@ class AutonomousPaperBot:
                     raise
             if once:
                 return result
-            time.sleep(interval)
+            time.sleep(self.seconds_until_next(interval) if align else interval)
 
 
 def main():
