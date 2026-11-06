@@ -37,7 +37,7 @@ class AutonomousPaperBot:
     def __init__(self, market=None, symbols=None, capital="100",
                  bots=12, generations=5, seed=42, retrain_cycles=24,
                  state_path=None, memory_path=None, history_candles=2160,
-                 testnet_api=None, timeframe_hours=1, strategy="legacy"):
+                 testnet_api=None, timeframe_hours=1, strategy="legacy", hybrid=False, min_edge_bps=10):
         if bots < 2 or generations < 1 or retrain_cycles < 1:
             raise ValueError("Invalid evolution configuration")
         self.market = market if market is not None else Market()
@@ -48,6 +48,9 @@ class AutonomousPaperBot:
         self.history_candles = history_candles
         self.timeframe_hours = timeframe_hours
         self.strategy = strategy
+        self.hybrid = hybrid
+        self.min_edge_bps = min_edge_bps
+        if min_edge_bps < 0: raise ValueError("Invalid edge")
         research_plan(strategy)  # validate the name early
         self.position_meta = {}
         self.pending_order = None
@@ -185,6 +188,59 @@ class AutonomousPaperBot:
                                  generations=self.generations,
                                  seed=self.seed+self.cycle_number, **plan)
 
+    def risk_cycle(self):
+        """Check protective price stops each minute, independently of 6h signals."""
+        self.settle_broker()
+        held = [s for s,q in self.portfolio.holdings.items() if q > 0]
+        if not held:
+            return {"risk_exits":[]}
+        if self.genome is None:
+            raise RuntimeError("MISSING_EXIT_POLICY")
+        prices = {s:self.market.price(s) for s in held}
+        today = datetime.now(timezone.utc).date().isoformat()
+        exits = []
+        for symbol in held:
+            meta = self.position_meta.get(symbol)
+            if meta is None:
+                raise RuntimeError("MISSING_RISK_STATE: "+symbol)
+            price = prices[symbol]
+            entry, atr = float(meta["entry"]), float(meta["entry_atr"])
+            meta["highest"] = max(float(meta["highest"]),price)
+            reason = None
+            if self.genome.kind == "ma_cross":
+                if price <= entry*(1-self.genome.stop): reason = "MINUTE_STOP"
+                elif self.genome.take and price >= entry*(1+self.genome.take): reason = "MINUTE_TAKE"
+            else:
+                if atr <= 0: raise RuntimeError("MISSING_ATR")
+                if price <= entry-self.genome.atr_stop*atr: reason = "MINUTE_ATR_STOP"
+                elif self.genome.trail and price <= meta["highest"]-self.genome.trail*atr:
+                    reason = "MINUTE_TRAIL"
+                elif self.genome.take and price >= entry*(1+self.genome.take): reason = "MINUTE_TAKE"
+            self.checkpoint()
+            if reason:
+                ident = str(int(time.time()//60)*60)
+                self.broker.sell(symbol,price,prices,today,
+                                 client_order_id("SELL",symbol,ident),self.set_pending)
+                self.after_fill("SELL",symbol,price)
+                self.checkpoint()
+                exits.append({"symbol":symbol,"reason":reason})
+        return {"risk_exits":exits}
+
+    def hybrid_entry_allowed(self, symbol, price, snapshot):
+        """15m confirmation plus round-trip fee/slippage and ATR range gate."""
+        if not self.hybrid: return True,"DISABLED"
+        rows = self.market.get("klines",{"symbol":symbol,"interval":"15m","limit":5})
+        now = int(time.time()*1000)
+        closed = [r for r in rows if int(r[6]) < now]
+        if len(closed) < 3: return False,"INSUFFICIENT_15M"
+        closes = [float(r[4]) for r in closed[-3:]]
+        if min(closes) <= 0 or closes[-1] <= closes[0]:
+            return False,"15M_TREND_NOT_CONFIRMED"
+        costs = 2*float(self.portfolio.limits.fee+self.portfolio.limits.slippage)
+        if snapshot.atr()/price <= costs+self.min_edge_bps/10000:
+            return False,"RANGE_BELOW_COSTS"
+        return True,"CONFIRMED"
+
     def cycle(self):
         # Fetch all histories before mutating any portfolio state.
         hourly = align_by_time({symbol:self.market.ohlcv(symbol,self.history_candles)
@@ -281,6 +337,11 @@ class AutonomousPaperBot:
                                            {"reasons":context["reasons"]})
                     self.checkpoint()
                     continue
+                allowed, gate = self.hybrid_entry_allowed(symbol,price,snapshot)
+                if not allowed:
+                    decisions.append({"symbol":symbol,"action":"WAIT","reason":gate})
+                    self.checkpoint()
+                    continue
                 try:
                     self.broker.buy(symbol,price,prices,today,
                                     client_order_id("BUY",symbol,self.candle_id(candles)),
@@ -317,12 +378,18 @@ class AutonomousPaperBot:
         now=time.time() if now is None else now
         return interval-(now%interval)+settle
 
-    def run(self, interval=3600, once=False, align=True):
+    def run(self, interval=3600, once=False, align=True, risk_interval=60):
         if interval < 60:
             raise ValueError("Minimum polling interval is 60 seconds")
+        next_signal = 0
         while True:
             try:
-                result=self.cycle()
+                now = time.time()
+                if self.hybrid and now < next_signal:
+                    result = self.risk_cycle()
+                else:
+                    result = self.cycle()
+                    next_signal = now + interval
                 LOG.info("cycle %s",json.dumps(result,ensure_ascii=False))
             except Exception:
                 LOG.exception("Ciclo falhou; ordens incertas da Testnet sao conferidas no proximo ciclo")
@@ -330,7 +397,7 @@ class AutonomousPaperBot:
                     raise
             if once:
                 return result
-            time.sleep(self.seconds_until_next(interval) if align else interval)
+            time.sleep(risk_interval if self.hybrid else (self.seconds_until_next(interval) if align else interval))
 
 
 def main():
@@ -346,6 +413,8 @@ def main():
                              "dela; legacy: evolucao livre com aprovacao estrita")
     parser.add_argument("--timeframe",type=int,default=6,choices=(1,2,4,6,12),
                         help="Horas por candle usadas pela estrategia (padrao 6)")
+    parser.add_argument("--hybrid",action="store_true",help="15m entry confirmation, cost filter, 60s risk checks")
+    parser.add_argument("--min-edge-bps",type=int,default=10)
     parser.add_argument("--mode",choices=("paper","testnet"),default="paper")
     parser.add_argument("--confirm-testnet",action="store_true",
                         help="Obrigatorio com --mode testnet: envia ordens FICTICIAS a Testnet")
@@ -368,7 +437,8 @@ def main():
                            memory_path=args.memory or ("data/market-memory.sqlite3" if prefix=="paper"
                                                        else "data/testnet-memory.sqlite3"),
                            history_candles=args.days*24,testnet_api=api,
-                           timeframe_hours=args.timeframe,strategy=args.strategy)
+                           timeframe_hours=args.timeframe,strategy=args.strategy,
+                           hybrid=args.hybrid,min_edge_bps=args.min_edge_bps)
     bot.run(interval=args.interval,once=args.once)
 
 
