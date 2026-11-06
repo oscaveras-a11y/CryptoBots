@@ -213,3 +213,23 @@ python3 evaluate.py candles.csv.gz --preset --summary          # avaliacao hones
 python3 autonomous.py --once                                   # bot: preset, 6h, simulacao
 ```
 
+
+
+### Modo híbrido experimental (opt-in)
+
+`python autonomous.py --mode paper --hybrid --timeframe 6` mantém a tendência de 6h,
+exige confirmação de alta em três candles de 15 minutos **fechados** e aplica um
+filtro conservador de amplitude ATR em relação à soma de taxas e slippage
+estimados de compra e venda, mais margem de 10 bps. ATR é uma medida de
+volatilidade, **não uma previsão de lucro**; o filtro não garante retorno líquido.
+
+Com `--hybrid`, o processo consulta preços aproximadamente a cada 60 segundos
+para aplicar stops e saídas de posições abertas, sem aguardar outro candle de
+6 horas. Essa proteção depende de o processo estar ativo e de haver acesso
+à API; saltos de preço, latência e indisponibilidade podem produzir perdas
+maiores que o stop. Os stops são ordens a mercado de software, **não ordens
+stop residentes na corretora**.
+
+O modo antigo continua sendo o padrão. Não habilite negociação contínua na
+Testnet sem antes executar comparação histórica fora da amostra com custos e
+dados intradiários adequados. Não há conexão com conta de produção.
