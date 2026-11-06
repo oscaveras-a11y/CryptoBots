@@ -37,7 +37,7 @@ class HybridTests(unittest.TestCase):
         bot=AutonomousPaperBot(market=market,hybrid=True)
         bot.portfolio.holdings["BTCUSDT"]=Decimal("0.01")
         bot.portfolio.cash=Decimal("50")
-        bot.genome=IndicatorGenome(kind="ma_cross",stop=0.05,take=0.1)
+        bot.genome=IndicatorGenome(fast=10,slow=30,rsi_buy_max=50,rsi_sell_min=30,max_atr_percent=5,kind="ma_cross",stop=0.05,take=0.1)
         bot.position_meta["BTCUSDT"]={"entry":100,"highest":100,"entry_atr":1,"held":0}
         bot.broker.sell=Mock()
         bot.after_fill=Mock()
