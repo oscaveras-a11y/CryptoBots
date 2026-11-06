@@ -239,6 +239,9 @@ class AutonomousPaperBot:
         costs = 2*float(self.portfolio.limits.fee+self.portfolio.limits.slippage)
         if snapshot.atr()/price <= costs+self.min_edge_bps/10000:
             return False,"RANGE_BELOW_COSTS"
+        # Observed 30-minute momentum is only a screening proxy, not a forecast.
+        if (closes[-1]/closes[0]-1) <= costs+self.min_edge_bps/10000:
+            return False,"MOMENTUM_BELOW_COSTS"
         return True,"CONFIRMED"
 
     def cycle(self):
