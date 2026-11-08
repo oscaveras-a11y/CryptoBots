@@ -37,7 +37,8 @@ class AutonomousPaperBot:
     def __init__(self, market=None, symbols=None, capital="100",
                  bots=12, generations=5, seed=42, retrain_cycles=24,
                  state_path=None, memory_path=None, history_candles=2160,
-                 testnet_api=None, timeframe_hours=1, strategy="legacy", hybrid=False, min_edge_bps=10):
+                 testnet_api=None, timeframe_hours=1, strategy="legacy", hybrid=False, min_edge_bps=10,
+                 risk_interval=300):
         if bots < 2 or generations < 1 or retrain_cycles < 1:
             raise ValueError("Invalid evolution configuration")
         self.market = market if market is not None else Market()
@@ -51,6 +52,8 @@ class AutonomousPaperBot:
         self.hybrid = hybrid
         self.min_edge_bps = min_edge_bps
         if min_edge_bps < 0: raise ValueError("Invalid edge")
+        if risk_interval < 60: raise ValueError("Minimum risk interval is 60 seconds")
+        self.risk_interval = risk_interval
         research_plan(strategy)  # validate the name early
         self.position_meta = {}
         self.pending_order = None
@@ -381,7 +384,8 @@ class AutonomousPaperBot:
         now=time.time() if now is None else now
         return interval-(now%interval)+settle
 
-    def run(self, interval=3600, once=False, align=True, risk_interval=60):
+    def run(self, interval=3600, once=False, align=True, risk_interval=None):
+        risk_interval = self.risk_interval if risk_interval is None else risk_interval
         if interval < 60:
             raise ValueError("Minimum polling interval is 60 seconds")
         next_signal = 0
@@ -416,8 +420,10 @@ def main():
                              "dela; legacy: evolucao livre com aprovacao estrita")
     parser.add_argument("--timeframe",type=int,default=6,choices=(1,2,4,6,12),
                         help="Horas por candle usadas pela estrategia (padrao 6)")
-    parser.add_argument("--hybrid",action="store_true",help="15m entry confirmation, cost filter, 60s risk checks")
+    parser.add_argument("--hybrid",action="store_true",help="15m entry confirmation, cost filter, risk checks every --risk-interval")
     parser.add_argument("--min-edge-bps",type=int,default=10)
+    parser.add_argument("--risk-interval",type=int,default=300,
+                        help="Com --hybrid: segundos entre checagens de stop (padrao 300 = 5 min; minimo 60)")
     parser.add_argument("--mode",choices=("paper","testnet"),default="paper")
     parser.add_argument("--confirm-testnet",action="store_true",
                         help="Obrigatorio com --mode testnet: envia ordens FICTICIAS a Testnet")
@@ -441,7 +447,8 @@ def main():
                                                        else "data/testnet-memory.sqlite3"),
                            history_candles=args.days*24,testnet_api=api,
                            timeframe_hours=args.timeframe,strategy=args.strategy,
-                           hybrid=args.hybrid,min_edge_bps=args.min_edge_bps)
+                           hybrid=args.hybrid,min_edge_bps=args.min_edge_bps,
+                           risk_interval=args.risk_interval)
     bot.run(interval=args.interval,once=args.once)
 
 

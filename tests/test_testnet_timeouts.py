@@ -13,7 +13,7 @@ from trader.market import Market
 
 class TimeoutTests(unittest.TestCase):
     def test_read_timeout_becomes_clear_runtime_error(self):
-        api = BinanceSpotTestnet(key="k", secret="s")
+        api = BinanceSpotTestnet(key="k", secret="s", sleep=lambda seconds: None)
         api.time_offset_ms = 0
         for failure in (TimeoutError("The read operation timed out"),
                         RemoteDisconnected("closed"), ConnectionResetError()):

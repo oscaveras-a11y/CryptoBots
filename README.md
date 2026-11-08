@@ -223,12 +223,21 @@ filtro conservador de amplitude ATR em relação à soma de taxas e slippage
 estimados de compra e venda, mais margem de 10 bps. ATR é uma medida de
 volatilidade, **não uma previsão de lucro**; o filtro não garante retorno líquido.
 
-Com `--hybrid`, o processo consulta preços aproximadamente a cada 60 segundos
-para aplicar stops e saídas de posições abertas, sem aguardar outro candle de
-6 horas. Essa proteção depende de o processo estar ativo e de haver acesso
+Com `--hybrid`, o processo consulta preços a cada 5 minutos (`--risk-interval 300`,
+mínimo 60 segundos) para aplicar stops e saídas de posições abertas, sem aguardar
+outro candle de 6 horas. Sem posição aberta, essa checagem não faz nenhuma
+consulta à conta. Essa proteção depende de o processo estar ativo e de haver acesso
 à API; saltos de preço, latência e indisponibilidade podem produzir perdas
 maiores que o stop. Os stops são ordens a mercado de software, **não ordens
 stop residentes na corretora**.
+
+Em conexões lentas, as consultas à Binance esperam até 30 segundos e as consultas
+que só leem dados (saldo, preço, horário) são repetidas até 2 vezes. Ordens nunca
+são reenviadas: se a resposta não chegar, o bot procura a ordem pelo ID.
+
+Nos testes com 2 anos de dados de 1h, conferir os stops de hora em hora deu
+resultado pior do que esperar o fechamento de 6h (104 contra 113). O efeito de
+checagens ainda mais frequentes não foi medido.
 
 O modo antigo continua sendo o padrão. Não habilite negociação contínua na
 Testnet sem antes executar comparação histórica fora da amostra com custos e
