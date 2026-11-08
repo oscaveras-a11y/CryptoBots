@@ -22,7 +22,7 @@ class Market:
 
     def _fetch(self, url):
         req = Request(url, headers={"User-Agent": "CryptoEvolutionLab/1.0"})
-        with urlopen(req, timeout=30) as response:
+        with urlopen(req, timeout=60) as response:
             return json.load(response)
 
     def get(self, path, params=None):

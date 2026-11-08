@@ -231,7 +231,7 @@ consulta à conta. Essa proteção depende de o processo estar ativo e de haver 
 maiores que o stop. Os stops são ordens a mercado de software, **não ordens
 stop residentes na corretora**.
 
-Em conexões lentas, as consultas à Binance esperam até 30 segundos e as consultas
+Em conexões lentas, as consultas à Binance esperam até 60 segundos e as consultas
 que só leem dados (saldo, preço, horário) são repetidas até 2 vezes. Ordens nunca
 são reenviadas: se a resposta não chegar, o bot procura a ordem pelo ID.
 

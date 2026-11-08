@@ -167,7 +167,7 @@ class BinanceSpotTestnet:
                      'exchangeInfo', 'ticker/price')
 
     # Slow home connections and a busy testnet: wait longer, and retry reads.
-    TIMEOUT = 30
+    TIMEOUT = 60
     READ_RETRIES = 2
 
     def __init__(self, key=None, secret=None, recv_window=5000, timeout=None,

@@ -36,7 +36,7 @@ class RetryTests(unittest.TestCase):
 
         def opener(req, timeout):
             urls.append(req.full_url)
-            self.assertEqual(timeout, 30)
+            self.assertEqual(timeout, 60)
             if len(urls) < 3:
                 raise TimeoutError("slow")
             return FakeResponse(b'{"balances": []}')
