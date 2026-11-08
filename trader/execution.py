@@ -166,13 +166,21 @@ class BinanceSpotTestnet:
     ALLOWED_PATHS = ('ping', 'time', 'account', 'order/test', 'order',
                      'exchangeInfo', 'ticker/price')
 
-    def __init__(self, key=None, secret=None, recv_window=5000):
+    # Slow home connections and a busy testnet: wait longer, and retry reads.
+    TIMEOUT = 60
+    READ_RETRIES = 2
+
+    def __init__(self, key=None, secret=None, recv_window=5000, timeout=None,
+                 read_retries=None, sleep=time.sleep):
         self.key = key if key is not None else os.environ.get('BINANCE_TESTNET_API_KEY','')
         self.secret = secret if secret is not None else os.environ.get('BINANCE_TESTNET_API_SECRET','')
         self.key, self.secret = self.key.strip(), self.secret.strip()
         if not self.key or not self.secret:
             raise ValueError('Testnet credentials missing')
         self.recv_window = int(recv_window)
+        self.timeout = self.TIMEOUT if timeout is None else timeout
+        self.read_retries = self.READ_RETRIES if read_retries is None else read_retries
+        self.sleep = sleep
         self.time_offset_ms = None  # server - local, measured lazily
 
     def _redact(self, text):
@@ -195,7 +203,7 @@ class BinanceSpotTestnet:
 
     def _send(self, req):
         try:
-            with urlopen(req, timeout=15) as response:
+            with urlopen(req, timeout=self.timeout) as response:
                 return json.load(response)
         except HTTPError as exc:
             # Never include the request URL, signed query or key.
@@ -215,12 +223,13 @@ class BinanceSpotTestnet:
         self.time_offset_ms = (int(server) - (before + after)//2) if isinstance(server, (int, float)) else 0
         return self.time_offset_ms
 
-    def request(self, path, params=None, method='GET', signed=False, _retry=True):
+    def request(self, path, params=None, method='GET', signed=False, _retry=True, _attempt=0):
         if path not in self.ALLOWED_PATHS:
             raise ValueError('Testnet API path not allowed')
         if method not in ('GET', 'POST'):
             raise ValueError('Unsupported request method')
         params = dict(params or {})
+        original = dict(params)
         if signed:
             if self.time_offset_ms is None:
                 try:
@@ -246,11 +255,17 @@ class BinanceSpotTestnet:
             # -1021 is rejected before processing, so one resync + retry is safe.
             if signed and _retry and exc.code == -1021:
                 self.sync_time()
-                params.pop('signature', None)
-                params.pop('timestamp', None)
-                params.pop('recvWindow', None)
-                return self.request(path, params, method, signed, _retry=False)
+                return self.request(path, original, method, signed, _retry=False)
             raise
+        except RuntimeError:
+            # Network failure or timeout. Reads (GET) change nothing on the
+            # exchange, so retrying them is safe; each retry gets a fresh
+            # timestamp and signature. Orders (POST) are NEVER resent here: the
+            # broker looks an uncertain order up by its client id instead.
+            if method != 'GET' or _attempt >= self.read_retries:
+                raise
+            self.sleep(2 * (_attempt + 1))
+            return self.request(path, original, method, signed, _retry, _attempt + 1)
 
     def account(self):
         return self.request('account', signed=True)

@@ -92,7 +92,12 @@ class TestnetBroker:
                {b["asset"]: dec(b["free"]) for b in account.get("balances", [])}
 
     def reconcile(self):
-        """Fail closed if a local position is not backed by testnet balances."""
+        """Fail closed if a local position is not backed by testnet balances.
+
+        With no open position there is nothing to compare, so the (slow) account
+        request is skipped; buys still check the USDT balance themselves."""
+        if not any(q > 0 for q in self.portfolio.holdings.values()):
+            return {}
         totals, _ = self.balances()
         problems = []
         for symbol, quantity in sorted(self.portfolio.holdings.items()):
